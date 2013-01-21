@@ -278,6 +278,9 @@ mainWindow = function() {
 		var segments = number_of_cities;
 		var segmentHeight = Math.floor(yTiles/segments);
 		
+		oilGraphic = new createjs.Shape();
+		stage.addChild(oilGraphic);
+		
 		[].concat(
 			_.range(1, segments+1).map(function(index) { //Cities, on the left.
 				return [
@@ -308,9 +311,6 @@ mainWindow = function() {
 		});
 		
 		updateOilGraph();
-		
-		oilGraphic = new createjs.Shape();
-		stage.addChild(oilGraphic);
 		
 		setTimeout(function() {createjs.Ticker.addListener(oilLogic);}, 500);
 	});
