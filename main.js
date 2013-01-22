@@ -20,12 +20,14 @@ mainWindow = function() {
 	//SETUP
 	var canvas = document.getElementById('main');
 	var stage = new createjs.Stage(canvas);
-	
+	stage.snapToPixel = true;
 	stage.enableMouseOver();
 	
 	var Width = canvas.width;                 var Height = canvas.height;
 	var tileWidth = 32;                       var tileHeight = 32;
 	var xTiles = Math.floor(Width/tileWidth); var yTiles = Math.floor(Height/tileHeight);
+	
+	var mouseX = 0; var mouseY = 0;
 	
 	//The 'tile' object exists to make coordinating an object less of a chore.
 	//var tileClickEvent = false;
@@ -83,7 +85,7 @@ mainWindow = function() {
 		//I'd prefer to have it so that when you set a property, the property was instead set in all children, and read from the 'base' tile only. However, my javascript-fu is weak, and I don't know how to do this well enough to make it work with easel.js. We will just go with mapping over the list of children (bits) for now.
 		return function(type, pipe, row, column, index) { //x/y/z, z optional.
 			var tileBackground = tilePrototype.clone();
-			tileBackground.cache(0 ,0, tileBackground.image.width || tileWidth, tileBackground.image.height || tileHeight); //TODO: Once the previous todo is fixed, remove the check against tileWidth/height.
+			tileBackground.cache(0, 0, tileBackground.image.width || tileWidth, tileBackground.image.height || tileHeight); //TODO: Once the previous todo is fixed, remove the check against tileWidth/height.
 			var tileIcon;
 			switch(type) {
 			case "lemon":
@@ -183,6 +185,71 @@ mainWindow = function() {
 				break;
 			}
 			
+			var margin = 5;
+			var offsetX = xFromTile(row) + tileWidth/2;
+			var offsetY = yFromTile(column) + tileHeight + margin/2;
+			
+			var header = new createjs.Text("Header", "bold 11px Arial");
+			header.y = offsetY + 2; //We'll compute x later.
+			
+			var text = new createjs.Text("Text", "10px Arial");
+			text.y = offsetY + header.getMeasuredHeight() + margin - 2.5;
+			
+			var box = new createjs.Shape();
+			box.snapToPixel = true;
+			
+			var redrawTextBox = function() {
+				var bubbleArrowWidth = 10;
+				var bubbleArrowTop = -bubbleArrowWidth;
+				var bubbleWidth = Math.max(header.getMeasuredWidth(), text.getMeasuredWidth()) + margin*2;
+				var bTop = 0;
+				var bBottom = header.getMeasuredHeight() + text.getMeasuredHeight() + margin*2 - 3;
+				var bLeft = -bubbleWidth/2;
+				var bRight = bubbleWidth/2;
+				var strokeWidth = 1.6;
+				
+				box.graphics
+					.beginStroke(createjs.Graphics.getRGB(0,0,0))
+					.beginFill(createjs.Graphics.getRGB(255,255,255,0.75))
+					.setStrokeStyle(strokeWidth)
+					.moveTo(bLeft,bTop)
+					.lineTo(-bubbleArrowWidth,bTop)
+					.lineTo(0,bubbleArrowTop)
+					.lineTo(bubbleArrowWidth,bTop)
+					.lineTo(bRight,bTop)
+					.lineTo(bRight, bBottom)
+					.lineTo(bLeft, bBottom)
+					.closePath()
+					.endStroke();
+				//box.cache(bLeft-strokeWidth, bubbleArrowTop-strokeWidth, bubbleWidth+strokeWidth*2, bBottom - bubbleArrowTop+strokeWidth*2);
+				//box.updateCache(); //Caching made it look bad. (box._cacheOffsetX was a decimal?)
+				box.x = offsetX;
+				box.y = offsetY;
+				
+				header.x = offsetX - bubbleWidth/2 + margin;
+				text.x = offsetX - bubbleWidth/2 + margin;
+			};
+			redrawTextBox();
+			
+			stage.addChild(box, header, text);
+			
+			var setText = function(newHeader, newText) {
+				if(text.text != newText || header.text != newHeader) {
+					if(text.text != newText) {
+						text.text = newText; }
+					if(header.text != newHeader) {
+						header.text = newHeader; }
+					redrawTextBox();
+				}
+			};
+			
+			var setAlpha = function(value) {
+				box.alpha = value;
+				header.alpha = value;
+				text.alpha = value;
+			};
+			setAlpha(0);
+			
 			var tileToReturn = {
 				x: row,
 				y: column,
@@ -190,7 +257,9 @@ mainWindow = function() {
 				supply: supply,
 				demand: demand,
 				storage: storage,
-				graphic: overlay
+				graphic: overlay,
+				setMsgText: setText,
+				setMsgAlpha: setAlpha
 			};
 			
 			overlayMap[row][column] = tileToReturn;
@@ -226,14 +295,7 @@ mainWindow = function() {
 		var tees = ['pipe-246', 'pipe-248', 'pipe-468', 'pipe-268'];
 		var crosses = ['pipe-2468'];
 		return getRandomType([].concat(corners, corners, corners, straights, straights, tees, crosses));
-	};/*
-	var getRandomOverlayType = function() {
-		if(Math.random() < 0.1) {
-			return getRandomType(['city', 'tank', 'well'].slice(0,1+enableOilTanks));
-		} else {
-			return "none";
-		}
-	};*/
+	};
 	
 	//GetNewTile was once a simpler function, so it has been replaced by getRandomTile. getNewTile needs the long args because we'll want control for powerups.
 	var getRandomTile = function(x,y,z) {return getNewTile(getRandomTileType(), getRandomPipeType(), x, y, z);};
@@ -290,6 +352,7 @@ mainWindow = function() {
 			}).map(function(loc) {
 				var city = getNewOverlay('city', loc[0], loc[1]);
 				cities.push(city);
+				city.setMsgText("City", "Wants oil.");
 				return city;
 			}),
 			
@@ -301,6 +364,7 @@ mainWindow = function() {
 			}).map(function(loc) {
 				var no = getNewOverlay('well', loc[0], loc[1]);
 				oilWells.push(no);
+				no.setMsgText("Oil Well", "Not connected.");
 				return no;
 			})
 		).map(function(overlay) {
@@ -319,12 +383,14 @@ mainWindow = function() {
 	var oilLogic = function() {
 		frame += 1;
 		var gfx = oilGraphic.graphics;
+		var halfTileX = tileWidth/2;
+		var halfTileY = tileHeight/2;
+		
+		//Draw oil in pipes.
 		gfx.clear();
 		
 		var printPath = function(tile, colour) {
 			var pipe = tile.pipe;
-			var halfTileX = tileWidth/2;
-			var halfTileY = tileHeight/2;
 			var lineRadius = 3;
 			var lineLengthOut = {"-1": -14, 0:0, "1": 15};
 			
@@ -354,7 +420,6 @@ mainWindow = function() {
 		oilWells.map(function(well) {
 			printPath(gamefield[well.x][well.y], "rgba(0,0,0,1)");
 		});
-		
 	};
 	
 	var updateOilGraph = function () {
@@ -489,6 +554,14 @@ mainWindow = function() {
 			
 			endMouseEvent(evt);
 		}
+		
+		[].concat(cities, oilWells).map(function(over) {
+			var maxDist = Math.max(Math.abs(over.graphic.x - evt.stageX + tileWidth/2), Math.abs(over.graphic.y - evt.stageY + tileHeight*1.5)/1.5);
+			over.setMsgAlpha(maxDist/100-0.5);
+		});
+		
+		mouseX = Math.floor(evt.stageX);
+		mouseY = Math.floor(evt.stageY);
 	};
 	
 	stage.onMouseUp = function(evt) { //And, finally, remove tiles, recompute stuff, add new tiles.
@@ -561,6 +634,12 @@ mainWindow = function() {
 			selectedObjects=[];
 			endMouseEvent(evt);
 		}
+	};
+	
+	stage.onMouseOut = function(evt) {
+		[].concat(cities, oilWells).map(function(over) {
+			over.setMsgAlpha(1);
+		});
 	};
 	
 	createjs.Ticker.addListener(stage);
