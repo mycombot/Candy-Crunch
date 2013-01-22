@@ -4,18 +4,28 @@ mainWindow = function() {
 	"use strict";
 	
 	//CONFIG
+	var watched = {
+		score: 0,
+		money: 50,
+		gameOver: false,
+		won: false
+	};
+	
 	var score = 0;
 	var money = 50;
 	var destructionCost = 1;
 	
 	var numTileTypes = 3;
-	var number_of_cities = 3;
+	var number_of_cities = 1;
 	var enableOilTanks = true;
 	var overlayLayout = ['horisontal','vertical'][0];
 	
 	var minimumTileMatchCount = 2;
 	
 	var gameOver = false;
+	var won = false;
+	
+	var victoryCallbacks = [];
 	
 	//SETUP
 	var canvas = document.getElementById('main');
@@ -114,13 +124,7 @@ mainWindow = function() {
 			var tilePipe = pipes[pipe].clone();
 			
 			var bits = [tileBackground, tileIcon, tilePipe];
-			/*
-			var tileOverlay = false;
-			if(overlay != "none") {
-				tileOverlay = overlays[overlay].clone();
-				bits.push(tileOverlay);
-			}
-			*/
+			
 			var indexOffset = 0;
 			bits.map(function(bit) {
 				if(index===undefined) {
@@ -208,7 +212,7 @@ mainWindow = function() {
 				var bRight = bubbleWidth/2;
 				var strokeWidth = 1.6;
 				
-				box.graphics
+				box.graphics.clear()
 					.beginStroke(createjs.Graphics.getRGB(0,0,0))
 					.beginFill(createjs.Graphics.getRGB(255,255,255,0.75))
 					.setStrokeStyle(strokeWidth)
@@ -384,12 +388,16 @@ mainWindow = function() {
 		setTimeout(function() {createjs.Ticker.addListener(oilLogic);}, 500);
 	});
 	
-	var oilSpeed = 0.04; //percent of a tile
 	var oilLogic = function() {
 		frame += 1;
 		var gfx = oilGraphic.graphics;
 		var halfTileX = tileWidth/2;
 		var halfTileY = tileHeight/2;
+		
+		var oilSpeed = 0;
+		if(frame - frame_last_modified > 10) {
+			oilSpeed = 0.04; //percent of a tile
+		}
 		
 		//Draw oil in pipes.
 		gfx.clear();
@@ -400,6 +408,10 @@ mainWindow = function() {
 			var lineLengthOut = {"-1": -14, 0:0, "1": 15};
 			var legOutComplete = Math.min(tile.oilLevel*2, 1);
 			var legInComplete = Math.min((Math.max(tile.oilLevel-0.5, 0))*2, 1);
+			
+			if(tile.oilLevel < 1) {
+				tile.oilLevel += pressure;
+			}
 			
 			tile.oilPathed.children.map(function(child) {
 				var pipedir = [child.x-tile.x, child.y-tile.y];
@@ -422,16 +434,72 @@ mainWindow = function() {
 				.endStroke();
 				
 				if(tile.oilLevel < 1) {
-					tile.oilLevel += pressure;
 					//console.log("Drawing pipe lo="+legOutComplete+"/li="+legInComplete+".");
 				} else {
 					printPath(child, colour, pressure);
+					child.hasOil = true;
 				}
 			});
 		};
-		
 		oilWells.map(function(well) {
-			printPath(gamefield[well.x][well.y], "rgba(0,0,0,1)", oilSpeed);
+			if(well.highlighted) {
+				printPath(gamefield[well.x][well.y], "rgba(60,60,200,0.8)", oilSpeed);
+			} else {
+				printPath(gamefield[well.x][well.y], "rgba(0,0,0,1)", oilSpeed);
+			}
+			well.setMsgText('Oil Well', 'Not connected.');
+			well.connected = false;
+		});
+		cities.map(function(city) {
+			
+			var parentWalker = function(obj, depth, currentDepth) { //Return the object at depth in the chain or the last object, and the depth it was found at.
+				depth = depth || 0;
+				currentDepth = currentDepth || 0;
+				if((depth && depth == currentDepth) || !obj.parent || !obj.parent.oilPathed){
+					//console.log(["Didn't recurse.", depth, currentDepth, obj.parent]);
+					return {object: obj, depth: currentDepth};
+				} else {
+					//console.log("Recursed. " + currentDepth);
+					return parentWalker(obj.parent.oilPathed, depth, currentDepth+1);
+				}
+			};
+			
+			city.setMsgText('City', 'Wants oil.');
+			city.connected = false;
+			
+			if(gamefield[city.x][city.y].hasOil && gamefield[city.x][city.y].oilPathed) {
+				if(!city.initialWave) {
+					createjs.Tween.get(city)
+					.to({initialWave:500});
+				}
+				if(city.initialWave && city.initialWave < 500) {
+					//Render backwards path here, width based on initialwave.
+				}
+				//city.addNewOilBlob; //This will render the oil flowing from the wells.
+				//city.advanceExistingOilBlobs;
+				
+				city.setMsgText('City', 'Has oil supply!');
+				var wellLoc = parentWalker(gamefield[city.x][city.y].oilPathed, 0).object.loc;
+				overlayMap[wellLoc[0]][wellLoc[1]].setMsgText('Oil Well', 'Connected to city.');
+				city.connected = true;
+				overlayMap[wellLoc[0]][wellLoc[1]].connected = true;
+				
+			}
+			
+			if(!gameOver && !_.find(
+				[].concat(oilWells, cities),
+				function(elem) {
+					return !elem.connected;
+				})) {
+				victoryCallbacks.map(function(call) {
+					call();
+				});
+				gameOver = true;
+				won = true;
+			}
+			
+			
+			
 		});
 	};
 	
@@ -462,7 +530,8 @@ mainWindow = function() {
 				if(!tile.oilPathed) { //Do we actually exist?
 					tile.oilPathed = {
 						children: [],
-						parent: parent
+						parent: parent,
+						loc: [tile.x, tile.y]
 					};
 					
 					if(parent) {parent.oilPathed.children.push(tile);} //Hi, parental unit.
@@ -547,9 +616,9 @@ mainWindow = function() {
 	};
 	
 	stage.onMouseMove = function(evt) { //Add more tiles as we move.
+		var overTileX = pixToTile(evt.stageX, tileWidth);
+		var overTileY = pixToTile(evt.stageY, tileHeight);
 		if(evt.nativeEvent.which==1) {
-			var overTileX = pixToTile(evt.stageX, tileWidth);
-			var overTileY = pixToTile(evt.stageY, tileHeight);
 			if(overTileX >= xTiles || overTileY >= yTiles) {return true;} //If we aren't over a tile, then abort the function.
 			var selectedObject = gamefield[overTileX][overTileY];
 			
@@ -572,6 +641,10 @@ mainWindow = function() {
 		[].concat(cities, oilWells).map(function(over) {
 			var maxDist = Math.max(Math.abs(over.graphic.x - evt.stageX + tileWidth/2), Math.abs(over.graphic.y - evt.stageY + tileHeight*1.5)/1.5);
 			over.setMsgAlpha(maxDist/100-0.5);
+		});
+		
+		oilWells.map(function(well) {
+			well.highlighted = well.x == overTileX && well.y == overTileY;
 		});
 		
 		mouseX = Math.floor(evt.stageX);
@@ -670,8 +743,13 @@ mainWindow = function() {
 	createjs.Ticker.addListener(spawnTiles);
 	
 	return {
-		score: function() {return score;},
+		score: function() {return watched.score;},
 		money: function() {return money;},
-		gameOver: function() {return gameOver;}
+		gameOver: function() {return gameOver;},
+		won: function() {return won;},
+		addCallback: function(funct) {
+			victoryCallbacks.push(funct);
+			return true;
+		}
 	};
 }();
