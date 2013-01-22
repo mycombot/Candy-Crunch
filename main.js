@@ -304,6 +304,10 @@ mainWindow = function() {
 	var frame_last_modified = 0;
 	var turn = 0;
 	
+	var callInitialRefreshCache = _.once(function() {
+			_.last(_.last(gamefield)).tile.image.onload=refreshCache;
+		});
+	
 	var spawnTiles = function() {
 		var rowsSpawnedPerFrame = 3;
 		var speedIn = 500;
@@ -331,6 +335,7 @@ mainWindow = function() {
 			}
 		};
 		_(rowsSpawnedPerFrame).times(spawnRow);
+		callInitialRefreshCache();
 	};
 	
 	var oilWells = [];
@@ -639,6 +644,16 @@ mainWindow = function() {
 	stage.onMouseOut = function(evt) {
 		[].concat(cities, oilWells).map(function(over) {
 			over.setMsgAlpha(1);
+		});
+	};
+	
+	var refreshCache = function() {
+		gamefield.map(function(column) {
+			column.map(function(tile) {
+				if(tile) {
+					tile.tile.updateCache();
+				}
+			});
 		});
 	};
 	
