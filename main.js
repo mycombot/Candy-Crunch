@@ -384,7 +384,7 @@ mainWindow = function() {
 		setTimeout(function() {createjs.Ticker.addListener(oilLogic);}, 500);
 	});
 	
-	var oilSpeed = 20; //percent of a tile
+	var oilSpeed = 0.04; //percent of a tile
 	var oilLogic = function() {
 		frame += 1;
 		var gfx = oilGraphic.graphics;
@@ -394,10 +394,12 @@ mainWindow = function() {
 		//Draw oil in pipes.
 		gfx.clear();
 		
-		var printPath = function(tile, colour) {
+		var printPath = function(tile, colour, pressure) {
 			var pipe = tile.pipe;
 			var lineRadius = 3;
 			var lineLengthOut = {"-1": -14, 0:0, "1": 15};
+			var legOutComplete = Math.min(tile.oilLevel*2, 1);
+			var legInComplete = Math.min((Math.max(tile.oilLevel-0.5, 0))*2, 1);
 			
 			tile.oilPathed.children.map(function(child) {
 				var pipedir = [child.x-tile.x, child.y-tile.y];
@@ -409,21 +411,27 @@ mainWindow = function() {
 					pipe.x+halfTileX+lineRadius*pipedir[0],
 					pipe.y+halfTileY+lineRadius*pipedir[1])
 				.lineTo(
-					pipe.x+halfTileX+lineLengthOut[pipedir[0]],
-					pipe.y+halfTileY+lineLengthOut[pipedir[1]])
+					pipe.x+halfTileX+lineRadius*pipedir[0] + (lineLengthOut[pipedir[0]]-lineRadius*pipedir[0])*legOutComplete,
+					pipe.y+halfTileY+lineRadius*pipedir[1] + (lineLengthOut[pipedir[1]]-lineRadius*pipedir[1])*legOutComplete)
 				.moveTo( //Draw the line inside the second pipe, to the center.
 					cpipe.x+halfTileX+lineLengthOut[-pipedir[0]],
 					cpipe.y+halfTileY+lineLengthOut[-pipedir[1]])
 				.lineTo(
-					cpipe.x+halfTileX-lineRadius*-pipedir[0],
-					cpipe.y+halfTileY-lineRadius*-pipedir[1])
+					cpipe.x+halfTileX-(lineRadius*-pipedir[0])*legInComplete + lineLengthOut[-pipedir[0]]*(1-legInComplete),
+					cpipe.y+halfTileY-(lineRadius*-pipedir[1])*legInComplete + lineLengthOut[-pipedir[1]]*(1-legInComplete))
 				.endStroke();
-				printPath(child, colour);
+				
+				if(tile.oilLevel < 1) {
+					tile.oilLevel += pressure;
+					//console.log("Drawing pipe lo="+legOutComplete+"/li="+legInComplete+".");
+				} else {
+					printPath(child, colour, pressure);
+				}
 			});
 		};
 		
 		oilWells.map(function(well) {
-			printPath(gamefield[well.x][well.y], "rgba(0,0,0,1)");
+			printPath(gamefield[well.x][well.y], "rgba(0,0,0,1)", oilSpeed);
 		});
 	};
 	
@@ -482,6 +490,7 @@ mainWindow = function() {
 					}
 				} else {
 					//console.log("recursed, was alread pathed");
+					//if(parent) {parent.oilPathed.children.push(tile);} //Enabling this line, even if it's not actually called, crashes the Chrome tab.
 					seek(activeHeads.slice(1,activeHeads.length), well);
 				}
 			} else {
