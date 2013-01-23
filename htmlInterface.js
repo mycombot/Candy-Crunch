@@ -17,7 +17,6 @@ var linkHTMLDisplayTo = function(mainWindow){
 		return arguments[2];
 	});
 	mainWindow.watch('gameOver', function() {
-		//$("#game").hide("slow");
 		alertBox = '<div id="popover"><h1>Game Over</h1><p>';
 		if(mainWindow.won) {
 			alertBox += "You connected completed the pipelines, and are assured an obscenely wealthy future.<br><br>-- A WINNER IS YOU --";

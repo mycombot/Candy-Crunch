@@ -3,6 +3,9 @@
 mainWindowFunction = function() {
 	"use strict";
 	
+	//This does not play a sound, unfortunantly, nor does it cause any errors.
+	console.log(createjs.SoundJS.play("sounds/stream-waterfall_0.ogg", createjs.SoundJS.INTERRUPT_NONE, 0, 400, -1));
+	
 	//CONFIG
 	var watched = {
 		score: typeof iScore !== 'undefined' && iScore || 0,
