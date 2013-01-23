@@ -1,35 +1,30 @@
-/*global createjs console _*/// Thought we'd give jslint a try. What an annoying, useful program.
+/*global createjs console _ $ iScore iMoney*/// Thought we'd give jslint a try. What an annoying, useful program.
 //Chromium: Run with --allow-file-access-from-files. Apparently it'll be fine in production.
-mainWindow = function() {
+mainWindowFunction = function() {
 	"use strict";
 	
 	//CONFIG
 	var watched = {
-		score: 0,
-		money: 50,
+		score: typeof iScore !== 'undefined' && iScore || 0,
+		money: typeof iMoney !== 'undefined' && iMoney || 150,
 		gameOver: false,
 		won: false
 	};
 	
-	var score = 0;
-	var money = 50;
 	var destructionCost = 1;
 	
 	var numTileTypes = 3;
-	var number_of_cities = 1;
+	var number_of_cities = 3;
 	var enableOilTanks = true;
 	var overlayLayout = ['horisontal','vertical'][0];
 	
 	var minimumTileMatchCount = 2;
 	
-	var gameOver = false;
-	var won = false;
-	
 	var victoryCallbacks = [];
 	
 	//SETUP
 	var canvas = document.getElementById('main');
-	var stage = new createjs.Stage(canvas);
+	var stage = new createjs.Stage(canvas); //Sadly, we have to expose this to kill it later.
 	stage.snapToPixel = true;
 	stage.enableMouseOver();
 	
@@ -46,7 +41,7 @@ mainWindow = function() {
 		var lemon = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_Lemon.png");
 		var cherry = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_Cherry.png");
 		var grapes = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_Grapes.png");
-		var pepper = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_GreenPepper.png");
+		var pepper = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_Watermellon.png");
 		var radish = new createjs.Bitmap("images/cc-by-sa/ails english/I_C_Radish.png");
 		
 		var pipes = {
@@ -253,6 +248,11 @@ mainWindow = function() {
 				text.alpha = value;
 			};
 			setAlpha(0);
+			
+			[box, header, text].map(function(textBalloon) {
+				createjs.Tween.get(textBalloon)
+				.to({alpha:1}, 200, createjs.Ease.linear);
+			});
 			
 			var tileToReturn = {
 				x: row,
@@ -486,7 +486,7 @@ mainWindow = function() {
 				
 			}
 			
-			if(!gameOver && !_.find(
+			if(!watched.gameOver && !_.find(
 				[].concat(oilWells, cities),
 				function(elem) {
 					return !elem.connected;
@@ -494,8 +494,8 @@ mainWindow = function() {
 				victoryCallbacks.map(function(call) {
 					call();
 				});
-				gameOver = true;
-				won = true;
+				watched.won = true; //We should set this first.
+				watched.gameOver = true;
 			}
 			
 			
@@ -577,6 +577,14 @@ mainWindow = function() {
 				well.targetCity = null;
 				seekCity([{tile:gamefield[well.x][well.y]}], well);
 			});
+		
+			gamefield.map(function(column) {
+				column.map(function(tile) {
+					if(!tile.oilPathed) {
+						tile.oilLevel = 0;
+					}
+				});
+			});
 		};
 	}();
 	
@@ -600,17 +608,18 @@ mainWindow = function() {
 	var selectedObjects = [];
 	stage.onMouseDown = function(evt) { //Register which tile we're over.
 		if(evt.nativeEvent.which==1) {
-			var overTileX = pixToTile(evt.stageX, tileWidth);
-			var overTileY = pixToTile(evt.stageY, tileHeight);
-			if(overTileX >= xTiles || overTileY >= yTiles) {return;}
-			var selectedObject = gamefield[overTileX][overTileY];
-			
-			//console.log(selectedObject);
-			
-			selectedObjects = [selectedObject];
-			selectedObject.tile.filters.push(selectedColor);
-			selectedObject.tile.updateCache();
-			
+			if(watched.money) {
+				var overTileX = pixToTile(evt.stageX, tileWidth);
+				var overTileY = pixToTile(evt.stageY, tileHeight);
+				if(overTileX >= xTiles || overTileY >= yTiles) {return;}
+				var selectedObject = gamefield[overTileX][overTileY];
+				
+				//console.log(selectedObject);
+				
+				selectedObjects = [selectedObject];
+				selectedObject.tile.filters.push(selectedColor);
+				selectedObject.tile.updateCache();
+			}
 			endMouseEvent(evt);
 		}
 	};
@@ -628,7 +637,7 @@ mainWindow = function() {
 					var comp_y = Math.abs(adj.y - selectedObject.y);
 					return comp_x === 1 && comp_y === 0 || comp_x === 0 && comp_y === 1;
 				});
-				if(selectedObject.type == _.head(selectedObjects).type && adjacentXY) {
+				if(selectedObjects.length && selectedObject.type == _.head(selectedObjects).type && adjacentXY) {
 					selectedObjects.push(selectedObject);
 					selectedObject.tile.filters.push(selectedColor);
 					selectedObject.tile.updateCache();
@@ -659,8 +668,13 @@ mainWindow = function() {
 					obj.tile.updateCache();
 				});
 			} else { //Remove object from play, shuffle objects above it down a space, and spawn new objects at the top.
-				money -= destructionCost; //Destruction is a flat-rate buisiness. This provides incentive to do more complicated destroys.
+				watched.money -= destructionCost; //Destruction is a flat-rate buisiness. This provides incentive to do more complicated destroys.
+				watched.score += Math.floor(Math.pow(selectedObjects.length, 1.4));
 				frame_last_modified = frame;
+				
+				if(watched.money <= 0) {
+					watched.gameOver = true;
+				}
 				
 				var columnsAffected = {}; //Will be a [] later.
 				selectedObjects.map(function(obj) {
@@ -717,6 +731,7 @@ mainWindow = function() {
 				});
 				updateOilGraph();
 			}
+			
 			//Before we destroy this, deal with these objects' destruction.
 			selectedObjects=[];
 			endMouseEvent(evt);
@@ -742,14 +757,7 @@ mainWindow = function() {
 	createjs.Ticker.addListener(stage);
 	createjs.Ticker.addListener(spawnTiles);
 	
-	return {
-		score: function() {return watched.score;},
-		money: function() {return money;},
-		gameOver: function() {return gameOver;},
-		won: function() {return won;},
-		addCallback: function(funct) {
-			victoryCallbacks.push(funct);
-			return true;
-		}
-	};
-}();
+	return watched; //Use 'mainWindow.watch(key, function)' to get stuff when changed. :)
+};
+
+mainWindow = mainWindowFunction();
