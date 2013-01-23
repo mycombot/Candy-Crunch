@@ -16,7 +16,7 @@ var linkHTMLDisplayTo = function(mainWindow){
 		scoreDisplay.innerText = " Score: " + arguments[2] + zeros;
 		return arguments[2];
 	});
-	mainWindow.watch('gameOver', function() {
+	mainWindow.watch('gameOver', _.once(function() {
 		alertBox = '<div id="popover"><h1>Game Over</h1><p>';
 		if(mainWindow.won) {
 			alertBox += "You connected completed the pipelines, and are assured an obscenely wealthy future.<br><br>-- A WINNER IS YOU --";
@@ -25,5 +25,5 @@ var linkHTMLDisplayTo = function(mainWindow){
 		}
 		alertBox += "</p>Play again? <a href='#' onclick='location.reload(true); return false;'>y</a>/<a href='#' onclick='$(\"#popover\").hide(\"slow\"); return false;'>n</a></div>";
 		$("#game").append(alertBox);
-	});
+	}));
 };

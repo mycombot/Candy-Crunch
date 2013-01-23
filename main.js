@@ -1,4 +1,4 @@
-/*global createjs console _ $ iScore iMoney*/// Thought we'd give jslint a try. What an annoying, useful program.
+/*global createjs console _ $ iScore iMoney iTiles iCities iMatch*/// Thought we'd give jslint a try. What an annoying, useful program.
 //Chromium: Run with --allow-file-access-from-files. Apparently it'll be fine in production.
 mainWindowFunction = function() {
 	"use strict";
@@ -16,12 +16,12 @@ mainWindowFunction = function() {
 	
 	var destructionCost = 1;
 	
-	var numTileTypes = 3;
-	var number_of_cities = 3;
+	var numTileTypes = typeof iTiles !== 'undefined' && iTiles || 3;
+	var number_of_cities = typeof iCities !== 'undefined' && iCities || 3;
 	var enableOilTanks = true;
 	var overlayLayout = ['horisontal','vertical'][0];
 	
-	var minimumTileMatchCount = 2;
+	var minimumTileMatchCount = typeof iMatch !== 'undefined' && iMatch || 2;
 	
 	var victoryCallbacks = [];
 	
