@@ -22,12 +22,17 @@
 	<body onload="linkHTMLDisplayTo(mainWindow)">
 		<h1>Oil Drop</h1>
 		<div id="game">
-			<canvas id="main" width=481 height=481> <!-- Should be power of 32+1. +1 for right/bottom board edge pixel. -->
+			<canvas id="main" width=321 height=321 style="margin-left:80px;"> <!-- Should be power of 32+1. +1 for right/bottom board edge pixel. -->
 				<p><img src="images/cc-by-sa/ails english/I_C_Lemon.png"></img><br>Oil Drop cannot be run using your current browser. Get Google's <a href="https://www.google.com/intl/en/chrome/browser/">Chrome</a> browser to fix this.</p>
 			</canvas>
+			<script type="text/javascript" >
+				var iTiles = 3;
+				var iCities = 2;
+				var iMoney = 30;
+			</script>
 			<script src="main.js" type="text/javascript"></script>
 			<p id="score"> Score: 0</p> <!-- Non-breaking space for alignment. Fix later. -->
-			<p id="cash"> Cash: $150000</p>
+			<p id="cash"> Cash: $30000</p>
 		</div>
 		<h2>Description</h2>
 		<p>

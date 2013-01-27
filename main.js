@@ -301,7 +301,7 @@ mainWindowFunction = function() {
 		var straights = ['pipe-28', 'pipe-46'];
 		var tees = ['pipe-246', 'pipe-248', 'pipe-468', 'pipe-268'];
 		var crosses = ['pipe-2468'];
-		return getRandomType([].concat(corners, corners, corners, straights, straights, tees, crosses));
+		return getRandomType([].concat(corners, straights, tees, tees, crosses));
 	};
 	
 	//GetNewTile was once a simpler function, so it has been replaced by getRandomTile. getNewTile needs the long args because we'll want control for powerups.
@@ -745,6 +745,11 @@ mainWindowFunction = function() {
 		[].concat(cities, oilWells).map(function(over) {
 			over.setMsgAlpha(1);
 		});
+		selectedObjects.map(function(obj) {
+			obj.tile.filters.pop();
+			obj.tile.updateCache();
+		});
+		selectedObjects=[];
 	};
 	
 	var refreshCache = function() {
