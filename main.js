@@ -1,12 +1,6 @@
 /*global createjs console _ $ iScore iMoney iTiles iCities iMatch*/// Thought we'd give jslint a try. What an annoying, useful program.
 //Chromium: Run with --allow-file-access-from-files. Apparently it'll be fine in production.
 
-if(typeofExplorerCanvas !== 'undefined') {
-	createjs.createCanvas = function() {
-		return new ExplorerCanvas();
-	};
-}
-
 mainWindowFunction = function() {
 	"use strict";
 	
