@@ -12,6 +12,7 @@ div#game {
 	margin-right: -60px;
 	padding: 50px;
 	padding-bottom: 0px;
+	background-color: #CCC;
 	background: linear-gradient(to top right, #CCC, #999);
 	background: -webkit-linear-gradient(#CCC, #999);
 	border: 10px solid #777;

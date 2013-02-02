@@ -10,7 +10,7 @@ var linkHTMLDisplayTo = function(mainWindow){
 		return arguments[2];
 	});
 	mainWindow.watch('score', function() {
-		console.log('got score change ' + arguments[2]);
+		//console.log('got score change ' + arguments[2]);
 		var zeros = Math.floor(Math.random()*100);
 		if(zeros < 10) {
 			zeros = "0"+zeros;
