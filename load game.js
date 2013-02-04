@@ -1,5 +1,7 @@
-/*global console createjs mainWindow linkHTMLDisplayTo $ _ jQuery*/
-var startGame = function() {
+/*global console createjs linkHTMLDisplay $ _ jQuery startNewGame*/
+
+var mainWindow = null;
+var loadGame = function() {
 	"use strict";
 	
 	var options = {
@@ -19,9 +21,9 @@ var startGame = function() {
 		
 		var onAllLoaded = function() {
 			if(loadOtherScriptsCount === jsAr.length) {
-				console.log('All scripts loaded.');
-				mainWindow.start();
-				linkHTMLDisplayTo(mainWindow);
+				console.log('All scripts loaded. Starting game.');
+				mainWindow = startNewGame();
+				linkHTMLDisplay();
 			}
 		};
 		
@@ -38,7 +40,7 @@ var startGame = function() {
 					loadOtherScriptsCount += 1;
 					onAllLoaded();
 				},
-				error: function() {console.log('An error occured loading a script via AJAX.');}
+				error: function() {console.error('An error occured loading a game script via AJAX.');}
 				
 			});
 		});
