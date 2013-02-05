@@ -306,8 +306,30 @@ startNewGame = function() {
 			});
 		};
 		
-		var tilesAffectedByBonus = function() {
-			return [];
+		var tilesAffectedByBonus = function(tile) {
+			//console.log(tile.bonuses);
+			var affectedTiles = [];
+			if(_.contains(tile.bonuses, 'hor')) {
+				_.range(xTiles).map(function(x) {
+					var match = gamefield[x][tile.tileY];
+					if(match) affectedTiles.push(match);
+				});
+			}
+			if(_.contains(tile.bonuses, 'ver')) {
+				_.range(yTiles).map(function(y) {
+					var match = gamefield[tile.tileX][y];
+					if(match) affectedTiles.push(match);
+				});
+			}
+			if(_.contains(tile.bonuses, 'point')) {
+				_.range(-1,2).map(function(x) {
+					_.range(-1,2).map(function(y) {
+						var match = gamefield[tile.tileX+x][tile.tileY+y];
+						if((x || y) && match) affectedTiles.push(match);
+					});
+				});
+			}
+			return affectedTiles;
 		};
 		
 		return function(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
@@ -331,19 +353,20 @@ startNewGame = function() {
 			*/
 			
 			var bonusesToApply = [];
-			(function computeBonusRemoves (toCheck, init) {
-				if(init) init();
+			(function computeBonusRemoves (toCheck, first) {
+				if(first) first();
 				var last = _.last(toCheck);
-				if(last) {
+				var init = _.initial(toCheck);
+				if(last && !_.find(tilesToRemove, function(tile) {return tile.tileX === last.tileX && tile.tileY === last.tileY;}) ) {
+					//console.log('Checking @ ' + last.tileX + '/' + last.tileY);
 					if(!_.find(tilesToRemove, function() {})) {
 						tilesToRemove.push(last);
 					}
-					computeBonusRemoves(
-						!last.isBonus ?
-							_.initial(toCheck) : (
-								bonusesToApply.push(last),
-								_.initial(toCheck).concat(tilesAffectedByBonus(last))
-							)); }
+					bonusesToApply.push(last),
+					computeBonusRemoves(!last.isBonus ? init : init.concat(tilesAffectedByBonus(last)));
+				} else if(init.length) {
+					computeBonusRemoves(init);
+				}
 			})(tilesToRemove, function() {tilesToRemove=[];});
 			console.log(bonusesToApply.length);
 			

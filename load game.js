@@ -6,7 +6,7 @@ var loadGame = function() {
 	
 	var options = {
 		preferFlash: false,
-		EaselJS_url: 'http://code.createjs.com/easeljs-0.5.0.min.js',
+		EaselJS_url: '../easel.js/lib/easeljs-0.5.0.min.js',
 		EaselFL_url: '../EaselFL/build/output/easelfl-cur.min.js',
 		SWFObject_url: '../EaselFL/js/swfobject.js',
 	};
