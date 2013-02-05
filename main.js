@@ -84,6 +84,7 @@ startNewGame = function() {
 			tileToReturn.x = tileToReturn.xFromTile();
 			tileToReturn.y = tileToReturn.yFromTile();
 			
+			tileToReturn.isBonus = !!isBonus;
 			tileToReturn.bonuses = [];
 			
 			tileToReturn.remove = function() { //Note: Only call if you've actually added this tile to the stage.
@@ -95,7 +96,7 @@ startNewGame = function() {
 				stage.addChild(tileToReturn);
 				return tileToReturn;
 			} else {
-				console.log('Adding tile, failed no-3s test. Retrying.');
+				//console.log('Adding tile, failed no-3s test. Retrying.');
 				return recurse(x,y);
 			}
 		};
@@ -248,33 +249,110 @@ startNewGame = function() {
 			}
 			
 			if(bonus.types.length) {
+				tile.transmuteToBonus = true;
 				return bonus;
 			} else {
 				return;
 			}
 		};
 		
-		return function(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
-			var bonuses = matches.map(function(matchPair) {
-				return getBonus(matchPair[0], matchPair[1]);
-				}).filter(function(bonus) {return bonus;});
-			
-			matches.map(function(matchPair) {
-				[]	.concat(
-						matchPair[1][0].length > 1 ? matchPair[1][0] : [],
-						matchPair[1][1].length > 1 ? matchPair[1][1] : [],
-						matchPair[0])
-					.map(function(matchedTile){
-						matchedTile.remove();
+		var removeMatchingTilesAndAddBonuses = function(tilesToRemove, bonuses, callback) { //Callback will either be run immeadiatly, if there were no tiles to be removed, or when the tiles that need to be removed have finished tweening out.
+			var tweenCount = 0;
+			tilesToRemove.map(function(matchedTile){
+				if(!matchedTile.transmuteToBonus) {
+					createjs.Tween.get(matchedTile)
+						.to({alpha:0}, 200, createjs.Ease.cubicIn)
+						.call(matchedTile.remove)
+						.call(function() {
+							tweenCount -= 1;
+							if(tweenCount === 0) {
+								if(callback) callback();
+								tweenCount -= 1;
+							}
+						});
+					tweenCount += 1;
+					} else {
+						matchedTile.remove(); //Remove the tile now, we'll replace it with a bonus tile later this function. Can't fade out because then the removal process would wipe the board entry of the bonus tile.
+					}
 				});
-			});
 			
 			bonuses.map(function(bonusTile) {
 				var newTile = getNewTile(bonusTile.x, bonusTile.y, true, bonusTile.index);
 				gamefield[bonusTile.x][bonusTile.y] = newTile;
 				newTile.bonuses = bonusTile.types;
 				
+			if(tweenCount === 0 && callback) callback();
 			});
+		};
+		
+		var fallTiles = function(callback) {
+			_.range(xTiles).map(function(x) {
+				_.range(yTiles-1, -1, -1).map(function(y) {
+					var tile = gamefield[x][y];
+					if(tile) {
+						var newY = gamefield[x].lastIndexOf(null);
+						if(newY > y) {
+							createjs.Tween.get(tile)
+							.to(
+								{y:tile.yFromTile(newY)},
+								Math.sqrt(Math.abs(tile.tileY-newY)*400000), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
+								createjs.Ease.bounceOut); //bounceOut also works nicely here, but it's a bit distracting.
+							tile.tileY = newY;
+							gamefield[x][y] = null;
+							gamefield[tile.tileX][tile.tileY] = tile;
+						}
+					}
+				});
+			});
+		};
+		
+		var tilesAffectedByBonus = function() {
+			return [];
+		};
+		
+		return function(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
+			var newBonuses = matches.map(function(matchPair) {
+				return getBonus(matchPair[0], matchPair[1]);
+				}).filter(function(bonus) {return bonus;});
+			
+			var tilesToRemove = [];
+			matches.map(function(matchPair) {
+				tilesToRemove = tilesToRemove.concat(
+					matchPair[1][0].length > 1 ? matchPair[1][0] : [],
+					matchPair[1][1].length > 1 ? matchPair[1][1] : [],
+					matchPair[0]);
+			});
+			
+			/*
+			We check to see the first tile in the passed-in list.
+			if its a bonus, then we append any additional tiles we need to to the passed-in list of tiles to check
+			Then, we add the current tile to the tilesToRemove list, which was cleared earlier.
+			Then we check the next tile.
+			*/
+			
+			var bonusesToApply = [];
+			(function computeBonusRemoves (toCheck, init) {
+				if(init) init();
+				var last = _.last(toCheck);
+				if(last) {
+					if(!_.find(tilesToRemove, function() {})) {
+						tilesToRemove.push(last);
+					}
+					computeBonusRemoves(
+						!last.isBonus ?
+							_.initial(toCheck) : (
+								bonusesToApply.push(last),
+								_.initial(toCheck).concat(tilesAffectedByBonus(last))
+							)); }
+			})(tilesToRemove, function() {tilesToRemove=[];});
+			console.log(bonusesToApply.length);
+			
+			removeMatchingTilesAndAddBonuses(
+				tilesToRemove,
+				newBonuses,
+				function () {
+					fallTiles();
+				} );
 			
 			//Spawn bonus candies, remove tiles that should be removed, including tiles affected by a bonus being removed.
 			//Check for additional removable matches and remove them using this function.
