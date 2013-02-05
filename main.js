@@ -71,7 +71,7 @@ startNewGame = function() {
 			
 			};
 			
-		return function recurse (x,y, isBonus, type) { //x/y are in terms of tiles from the origin.
+		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin.
 			var tileIndex = !isBonus ? _.random(numTileTypes) : type;
 			var tileToReturn = !isBonus ? tiles.normal[tileIndex].clone() : tiles.bonus[tileIndex].clone();
 			tileToReturn.index = tileIndex; //Because new tiles are cloned from the prototypes, we can't set the index in the prototype.
@@ -97,7 +97,7 @@ startNewGame = function() {
 				return tileToReturn;
 			} else {
 				//console.log('Adding tile, failed no-3s test. Retrying.');
-				return recurse(x,y);
+				return getNewTileInternal(x,y);
 			}
 		};
 	}();
@@ -144,8 +144,8 @@ startNewGame = function() {
 	
 	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
 	var mode = typeof iMode !== 'undefined' && iMode || 'turns';
-	if(numTileTypes < 2) {
-		console.warn('You have specified fewer than three tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.');
+	if(numTileTypes < 3) {
+		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
 		throw "too few tiles";
 	}
 	
@@ -219,6 +219,7 @@ startNewGame = function() {
 					removeMatches([[a, aMatches], [b, bMatches]].filter(function(matchPair) { //At least one is good, but we need to not pass along the other one if it's not good. So, we'll filter the list.
 							return matchPair[1][0].length > 1 || matchPair[1][1].length > 1;
 						}));
+					// removeMatches(searchForMatches()); //Slower than the above way, not that it matters. Since we did the first way first, lets just leave it in.
 				} else { //[TILES]: Or perhaps switch the tiles back.
 					a.tileX = b.tileX;			a.tileY = b.tileY;
 					gamefield[a.tileX][a.tileY] = a;
@@ -286,24 +287,51 @@ startNewGame = function() {
 		};
 		
 		var fallTiles = function(callback) {
+			var tweenCount = 0;
 			_.range(xTiles).map(function(x) {
 				_.range(yTiles-1, -1, -1).map(function(y) {
 					var tile = gamefield[x][y];
 					if(tile) {
 						var newY = gamefield[x].lastIndexOf(null);
 						if(newY > y) {
+							tweenCount += 1;
 							createjs.Tween.get(tile)
 							.to(
 								{y:tile.yFromTile(newY)},
 								Math.sqrt(Math.abs(tile.tileY-newY)*400000), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
-								createjs.Ease.bounceOut); //bounceOut also works nicely here, but it's a bit distracting.
+								createjs.Ease.bounceOut) //bounceOut also works nicely here, but it's a bit distracting.
+								.call(function() {
+									tweenCount -= 1;
+									if(tweenCount === 0) {
+										if(callback) callback();
+										tweenCount -= 1;
+									}
+								});
 							tile.tileY = newY;
 							gamefield[x][y] = null;
 							gamefield[tile.tileX][tile.tileY] = tile;
 						}
 					}
 				});
+				_.range(0, gamefield[x].lastIndexOf(null)+1).map(function(y) {
+					var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
+					gamefield[x][y] = tile;
+					tile.alpha = 0;
+					tweenCount += 1;
+					createjs.Tween.get(tile)
+						.wait(200)
+						.call(function() {
+							tweenCount -= 1;
+							if(tweenCount === 0) {
+								if(callback) callback();
+								tweenCount -= 1;
+							}
+						})
+						.wait(50*y+200) //"Matrix-style", fade in from the top.
+						.to({alpha:1}, 500, createjs.Ease.cubicIn);
+				});
 			});
+			if(tweenCount === 0 && callback) callback();
 		};
 		
 		var tilesAffectedByBonus = function(tile) {
@@ -324,7 +352,7 @@ startNewGame = function() {
 			if(_.contains(tile.bonuses, 'point')) {
 				_.range(-1,2).map(function(x) {
 					_.range(-1,2).map(function(y) {
-						var match = gamefield[tile.tileX+x][tile.tileY+y];
+						var match = gamefield[tile.tileX+x] && gamefield[tile.tileX+x][tile.tileY+y];
 						if((x || y) && match) affectedTiles.push(match);
 					});
 				});
@@ -332,7 +360,12 @@ startNewGame = function() {
 			return affectedTiles;
 		};
 		
-		return function(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
+		return function removeMatchesInternal(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
+			if(!matches.length) {
+				noInput = false;
+				return;
+			}
+			
 			var newBonuses = matches.map(function(matchPair) {
 				return getBonus(matchPair[0], matchPair[1]);
 				}).filter(function(bonus) {return bonus;});
@@ -345,20 +378,12 @@ startNewGame = function() {
 					matchPair[0]);
 			});
 			
-			/*
-			We check to see the first tile in the passed-in list.
-			if its a bonus, then we append any additional tiles we need to to the passed-in list of tiles to check
-			Then, we add the current tile to the tilesToRemove list, which was cleared earlier.
-			Then we check the next tile.
-			*/
-			
 			var bonusesToApply = [];
 			(function computeBonusRemoves (toCheck, first) {
 				if(first) first();
 				var last = _.last(toCheck);
 				var init = _.initial(toCheck);
 				if(last && !_.find(tilesToRemove, function(tile) {return tile.tileX === last.tileX && tile.tileY === last.tileY;}) ) {
-					//console.log('Checking @ ' + last.tileX + '/' + last.tileY);
 					if(!_.find(tilesToRemove, function() {})) {
 						tilesToRemove.push(last);
 					}
@@ -368,22 +393,64 @@ startNewGame = function() {
 					computeBonusRemoves(init);
 				}
 			})(tilesToRemove, function() {tilesToRemove=[];});
-			console.log(bonusesToApply.length);
 			
 			removeMatchingTilesAndAddBonuses(
 				tilesToRemove,
 				newBonuses,
 				function () {
-					fallTiles();
+					fallTiles(function() {
+						removeMatchesInternal(searchForMatches());
+					});
 				} );
 			
 			//Spawn bonus candies, remove tiles that should be removed, including tiles affected by a bonus being removed.
 			//Check for additional removable matches and remove them using this function.
-			
-			noInput = false;
 		};
 	}();
 	
+	var searchForMatches = function () {
+		var matchesFound = _
+			.flatten(
+				makeField().map(function(column, x) {
+					return column.map(function(row, y) { //We scan for intersection bonuses first because we wouldn't want to miss one because a line bonus had already spoken for it. (Only when the first tile was ⇱ would the intersection be counted.)
+						var target = gamefield[x][y];
+						if(target) {
+							var hline = linesInDir(target, 'h');
+							var vline = linesInDir(target, 'v');
+							if(hline.length > 1 && vline.length > 1) {
+								[].concat(target, hline, vline).map(function(tile) {tile.searchForMatchesMatched=true;} );
+								return [target, [hline, vline]];
+							}
+						}
+					});
+				}),
+				true)
+			.filter(function(potMatch) {return potMatch;})
+			.concat(
+				_.flatten(
+					makeField().map(function(column, x) {
+						return column.map(function(row, y) {
+							var target = gamefield[x][y];
+							if(target && !target.searchForMatchesMatched) {
+								var hline = linesInDir(target, 'h');
+								var vline = linesInDir(target, 'v');
+								[].concat(target, hline, vline).map(function(tile) {tile.searchForMatchesMatched=true;} );
+								if(hline.length > 1) return [target, [hline, []]];
+								if(vline.length > 1) return [target, [[], vline]];
+							}
+						});
+					}),
+					true)
+				.filter(function(potMatch) {return potMatch;}));
+		
+		gamefield.map(function(row) {
+			row.map(function(tile) {
+				delete tile.searchForMatchesMatched;
+			});
+		});
+		
+		return matchesFound;
+	};
 	
 	var tilesAreAdjacent = function(a,b) {
 		return a && b &&
