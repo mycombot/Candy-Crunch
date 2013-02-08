@@ -313,22 +313,25 @@ startNewGame = function() {
 						}
 					}
 				});
-				_.range(0, gamefield[x].lastIndexOf(null)+1).map(function(y) {
+				var lastY = gamefield[x].lastIndexOf(null)+1;
+				_.range(0, lastY).map(function(y) {
 					var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
 					gamefield[x][y] = tile;
-					tile.alpha = 0;
+					var targetY = tile.y;
+					tile.y -= lastY*tileHeight;
 					tweenCount += 1;
 					createjs.Tween.get(tile)
-						.wait(200)
+						.to(
+							{y:targetY},
+							Math.sqrt(Math.abs(lastY)*400000),
+							createjs.Ease.bounceOut)
 						.call(function() {
 							tweenCount -= 1;
 							if(tweenCount === 0) {
 								if(callback) callback();
 								tweenCount -= 1;
 							}
-						})
-						.wait(50*y+200) //"Matrix-style", fade in from the top.
-						.to({alpha:1}, 500, createjs.Ease.cubicIn);
+						});
 				});
 			});
 			if(tweenCount === 0 && callback) callback();

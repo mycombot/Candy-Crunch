@@ -1,7 +1,7 @@
 body {
 	background-image: url("images/non-legit background.jpeg");
 	background-position: top center;
-	width: 481px;
+	width: 639px;
 	margin-left: auto;
 	margin-right: auto;
 	color: white;
@@ -30,7 +30,7 @@ canvas {
 
 p#score {
 	float: left;
-	width: 240px;
+	width: 50%;
 	background-color: #CCC;
 	border: 1px solid black;
 }
