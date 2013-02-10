@@ -9,7 +9,7 @@ This means that you can say stuff like "mainWindow.watchScoreWith(function(foo) 
 startNewGame = function() {
 	"use strict";
 	
-// →→→ Definitions ←←←
+// →→→ Function Definitions ←←←
 	var watchableCounter = function(initial_value) {
 		var counter = initial_value;
 		var watchers = [];
@@ -53,27 +53,63 @@ startNewGame = function() {
 	
 	
 	var getNewTile = function(){
-		var tiles = {
+		var tileSourceRects = { //sourceRect is not cloned when we clone the bitmap. We must define sourceRects instead of bitmaps.
 			normal: [
-				new createjs.Bitmap("images/tile-1.png"),
-				new createjs.Bitmap("images/tile-2.png"),
-				new createjs.Bitmap("images/tile-3.png"),
-				new createjs.Bitmap("images/tile-4.png"),
-				new createjs.Bitmap("images/tile-5.png"),
-				new createjs.Bitmap("images/tile-6.png") ],
-			bonus: [
-				new createjs.Bitmap("images/bonus-tile-1.png"),
-				new createjs.Bitmap("images/bonus-tile-2.png"),
-				new createjs.Bitmap("images/bonus-tile-3.png"),
-				new createjs.Bitmap("images/bonus-tile-4.png"),
-				new createjs.Bitmap("images/bonus-tile-5.png"),
-				new createjs.Bitmap("images/bonus-tile-6.png") ],
+				new createjs.Rectangle(360, 5,   71, 63),
+				new createjs.Rectangle(432, 5,   71, 63),
+				new createjs.Rectangle(360, 75,  71, 63),
+				new createjs.Rectangle(432, 75,  71, 63),
+				new createjs.Rectangle(360, 147, 71, 63),
+				new createjs.Rectangle(432, 147, 71, 63) ],
+			hor: [
+				new createjs.Rectangle(144, 220, 71, 63),
+				new createjs.Rectangle(288, 220, 71, 63),
+				new createjs.Rectangle(71,  147, 71, 63),
+				new createjs.Rectangle(215, 147, 71, 63),
+				new createjs.Rectangle(215, 220, 71, 63),
+				new createjs.Rectangle(144, 147, 71, 63) ],
+			ver: [ //Twist these 90°.
+				new createjs.Rectangle(144, 220, 71, 63),
+				new createjs.Rectangle(288, 220, 71, 63),
+				new createjs.Rectangle(71,  147, 71, 63),
+				new createjs.Rectangle(215, 147, 71, 63),
+				new createjs.Rectangle(215, 220, 71, 63),
+				new createjs.Rectangle(144, 147, 71, 63) ],
+			point: [
+				new createjs.Rectangle(360, 220, 71, 63),
+				new createjs.Rectangle(432, 220, 71, 63),
+				new createjs.Rectangle(360, 290, 71, 63),
+				new createjs.Rectangle(432, 290, 71, 63),
+				new createjs.Rectangle(360, 362, 71, 63),
+				new createjs.Rectangle(432, 362, 71, 63) ],
+			like: [ //Offset this to 147. (+3)
+				new createjs.Rectangle(288, 145, 71, 69),
+				new createjs.Rectangle(288, 145, 71, 69),
+				new createjs.Rectangle(288, 145, 71, 69),
+				new createjs.Rectangle(288, 145, 71, 69),
+				new createjs.Rectangle(288, 145, 71, 69),
+				new createjs.Rectangle(288, 145, 71, 69) ],
 			
 			};
 			
-		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin.
-			var tileIndex = !isBonus ? _.random(numTileTypes) : type;
-			var tileToReturn = !isBonus ? tiles.normal[tileIndex].clone() : tiles.bonus[tileIndex].clone();
+		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin. type is the index of the bitmap. isBonus can be undefined or the type of bonus.
+			if(!_.contains([undefined, "hor", "ver", "point", "like"], isBonus)) {
+				console.warn("isBonus is '" + isBonus + "', shouldn't be.");
+				throw "bad isBonus value";
+			}
+			
+			var tileIndex = type===undefined ? _.random(numTileTypes) : type;
+			var tileToReturn = spriteSheetA.clone();
+			tileToReturn.sourceRect = !isBonus ? tileSourceRects.normal[tileIndex].clone() : tileSourceRects[isBonus][tileIndex].clone();
+			
+			if(isBonus === "ver") {
+				tileToReturn.rotation = 90;
+				tileToReturn.regY = tileWidth-4;
+				tileToReturn.regX = 4;
+			} else if(isBonus === "like") {
+				tileToReturn.regY = 3;
+			}
+			
 			tileToReturn.index = tileIndex; //Because new tiles are cloned from the prototypes, we can't set the index in the prototype.
 			
 			tileToReturn.xFromTile = function(x) {return _.if(typeof x === 'number', x, tileToReturn.tileX) * tileWidth;};
@@ -92,7 +128,7 @@ startNewGame = function() {
 				stage.removeChild(tileToReturn);
 			};
 			
-			if(isBonus || linesInDir(tileToReturn, 'h').length < 2 && linesInDir(tileToReturn, 'v').length < 2) {
+			if(type!==undefined || linesInDir(tileToReturn, 'h').length < 2 && linesInDir(tileToReturn, 'v').length < 2) {
 				stage.addChild(tileToReturn);
 				return tileToReturn;
 			} else {
@@ -107,71 +143,34 @@ startNewGame = function() {
 		return Math.floor(dist/tsize);
 	};
 	
+	
 	var canInput = function() { //Returns true if we have time left or moves left.
 		return _.if(mode === 'turns', remainingTiles.value(), remainingTime.value()) && !noInput;
 	};
 	
-	var linesInDir = function(tile, direction) {
-		_.if(!_.contains(['h', 'v'], direction),
-			function() {
-				console.warn('Bad direction: \''+direction+'\' (Should be either \'h\' or \'v\'.)');
-				throw('bad direction');
-				},
-			function() {} )();
-		var vecs = direction === 'h' ? [[-1,0],[1,0]] : [[0,-1],[0,1]];
-		return [].concat(lineInDir(tile, vecs[0]), lineInDir(tile, vecs[1]));
-	};
-	var lineInDir = function(tile, vector) {
-		var nextTile = gamefield[tile.tileX+vector[0]] && gamefield[tile.tileX+vector[0]][tile.tileY+vector[1]];
-		if(nextTile && nextTile.index === tile.index) {
-			return lineInDir(nextTile, vector).concat(nextTile);
-		} else {
-			return [];
-		}
-	};
+	
+	var linesInDir = function() {
+		var lineInDir = function(tile, vector) {
+			var nextTile = gamefield[tile.tileX+vector[0]] && gamefield[tile.tileX+vector[0]][tile.tileY+vector[1]];
+			if(nextTile && nextTile.index === tile.index) {
+				return lineInDir(nextTile, vector).concat(nextTile);
+			} else {
+				return [];
+			}
+		};
+		return function(tile, direction) {
+			_.if(!_.contains(['h', 'v'], direction),
+				function() {
+					console.warn('Bad direction: \''+direction+'\' (Should be either \'h\' or \'v\'.)');
+					throw('bad direction');
+					},
+				function() {} )();
+			var vecs = direction === 'h' ? [[-1,0],[1,0]] : [[0,-1],[0,1]];
+			return [].concat(lineInDir(tile, vecs[0]), lineInDir(tile, vecs[1]));
+		};
+	}();
 	
 	
-	
-	
-	
-// →→→ Initial Setup ←←←
-	var canvas = document.getElementById('main');
-	
-	var stage = new createjs.Stage(canvas);
-	stage.snapToPixel = true;
-	stage.enableMouseOver();
-	createjs.Ticker.addListener(stage);
-	
-	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
-	var mode = typeof iMode !== 'undefined' && iMode || 'turns';
-	if(numTileTypes < 3) {
-		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
-		throw "too few tiles";
-	}
-	
-	var Width = canvas.width;                 var Height = canvas.height;
-	var tileWidth = 71;                       var tileHeight = 63;
-	var xTiles = Math.floor(Width/tileWidth); var yTiles = Math.floor(Height/tileHeight);
-	
-	// var mouseX = 0; var mouseY = 0;
-	var selectedObject = null;
-	var selectionIndicator = null;
-	
-	var score = watchableCounter(0);
-	var remainingTiles = watchableCounter(15);
-	var remainingTime = watchableCounter(180);
-	var gameStatus = watchableCounter('playing');
-	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
-	
-	var gamefield = makeField();
-	gamefield.map(function(row, row_count) {
-		row.map(function(tile, column_count) {
-			gamefield[row_count][column_count] = getNewTile(row_count, column_count);
-		});});
-	
-	var noInput = false;	//We'll set this to true when we're animating the board, so that we don't select objects that get removed accidentally.
-	
-// →→→ LOGIC ←←←
 	var selectObject = function(tile) {
 		if(selectedObject !== tile) {
 			selectedObject = tile;
@@ -185,7 +184,9 @@ startNewGame = function() {
 				}
 			} else {
 				if(tile){
-					selectionIndicator = new createjs.Bitmap("images/tile selector.png");
+					selectionIndicator = spriteSheetA.clone();
+					selectionIndicator.sourceRect = new createjs.Rectangle(0, 145, 71, 71),
+					selectionIndicator.regY = 4;
 					stage.addChild(selectionIndicator);
 					selectionIndicator.x = tile.xFromTile();
 					selectionIndicator.y = tile.yFromTile();
@@ -245,6 +246,9 @@ startNewGame = function() {
 			if(matches[1].length > 2) {
 				bonus.types.push('ver');
 			}
+			if(matches[0].length > 3 || matches[1].length > 3) {
+				bonus.types = ['like'];
+			}
 			if(matches[0].length > 1 && matches[1].length > 1) {
 				bonus.types.push('point');
 			}
@@ -259,7 +263,7 @@ startNewGame = function() {
 		
 		var removeMatchingTilesAndAddBonuses = function(tilesToRemove, bonuses, callback) { //Callback will either be run immeadiatly, if there were no tiles to be removed, or when the tiles that need to be removed have finished tweening out.
 			var tweenCount = 0;
-			tilesToRemove.map(function(matchedTile){
+			tilesToRemove.map(function(matchedTile){ //Remove matching tiles (passed in).
 				if(!matchedTile.transmuteToBonus) {
 					createjs.Tween.get(matchedTile)
 						.to({alpha:0}, 200, createjs.Ease.cubicIn)
@@ -277,8 +281,8 @@ startNewGame = function() {
 					}
 				});
 			
-			bonuses.map(function(bonusTile) {
-				var newTile = getNewTile(bonusTile.x, bonusTile.y, true, bonusTile.index);
+			bonuses.map(function(bonusTile) { //Add any bonus tiles we need to as a result of the matches. (Tiles are passed in.)
+				var newTile = getNewTile(bonusTile.x, bonusTile.y, _.head(bonusTile.types), bonusTile.index);
 				gamefield[bonusTile.x][bonusTile.y] = newTile;
 				newTile.bonuses = bonusTile.types;
 				
@@ -286,9 +290,10 @@ startNewGame = function() {
 			});
 		};
 		
+		var speed = 400000;
 		var fallTiles = function(callback) {
 			var tweenCount = 0;
-			_.range(xTiles).map(function(x) {
+			_.range(xTiles).map(function(x) { //Tiles falling down to fill gaps left by replaced tiles.
 				_.range(yTiles-1, -1, -1).map(function(y) {
 					var tile = gamefield[x][y];
 					if(tile) {
@@ -298,22 +303,22 @@ startNewGame = function() {
 							createjs.Tween.get(tile)
 							.to(
 								{y:tile.yFromTile(newY)},
-								Math.sqrt(Math.abs(tile.tileY-newY)*400000), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
+								Math.sqrt(Math.abs(tile.tileY-newY)*speed), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
 								createjs.Ease.bounceOut) //bounceOut also works nicely here, but it's a bit distracting.
-								.call(function() {
+							.call(function() {
+								tweenCount -= 1;
+								if(tweenCount === 0) {
+									if(callback) callback();
 									tweenCount -= 1;
-									if(tweenCount === 0) {
-										if(callback) callback();
-										tweenCount -= 1;
-									}
-								});
+								}
+							});
 							tile.tileY = newY;
 							gamefield[x][y] = null;
 							gamefield[tile.tileX][tile.tileY] = tile;
 						}
 					}
 				});
-				var lastY = gamefield[x].lastIndexOf(null)+1;
+				var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
 				_.range(0, lastY).map(function(y) {
 					var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
 					gamefield[x][y] = tile;
@@ -323,7 +328,7 @@ startNewGame = function() {
 					createjs.Tween.get(tile)
 						.to(
 							{y:targetY},
-							Math.sqrt(Math.abs(lastY)*400000),
+							Math.sqrt(Math.abs(lastY)*speed),
 							createjs.Ease.bounceOut)
 						.call(function() {
 							tweenCount -= 1;
@@ -468,15 +473,194 @@ startNewGame = function() {
 		// mouseX = evt.stageX; mouseY = evt.stageY;
 		evt.nativeEvent.preventDefault();
 		evt.nativeEvent.stopPropagation();
+		//evt.nativeEvent.stopImmediatePropagation();
+		return false;
 	};
 	
 	
+	var isRightButton = function(which) { //Takes a mouse button, returns true if it's the one we accept input from. (0 if on tablet, 1 if on computer) This assumes a touch-enabled device won't accept mouse input, which might be a dangerous assumption.
+		return createjs.Touch.isSupported() ? which === 0 : which === 1;
+	};
+	
+	
+	var checkForMatches = function() {
+		var getPotentialMatches = function() {
+			var order = _(_.range(numTileTypes+1)).shuffle();
+			var foundObjects = false;
+			_.find(order, function(targetTileType) {
+				return _(_.shuffle(potentialMatches)) //This way, we'll look for different potential matches each time and educate our player.
+					.find(function(matchMask) {
+						//Arrays might not be zero-indexed, but start at 1 instead.
+						var mmLength = matchMask.length;
+						var mmHeight = matchMask[0].length;
+						
+						_.find(_.range(xTiles-mmLength), function(xOffset) {
+							_.find(_.range(yTiles-mmHeight), function(yOffset) {
+								var cluster = _.flatten(
+									gamefield
+										.slice(xOffset,xOffset+mmLength)
+										.map(function(column, colCount) {
+											return column
+											.slice(yOffset, yOffset+mmHeight)
+											.filter(function(tile, rowCount) {
+												return matchMask[colCount][rowCount];
+											});
+										}),
+									true);
+								var clusterPassed = (undefined === _.find(_.pluck(cluster, 'index'), function(index) {
+									return index != targetTileType;
+								}));
+								if(clusterPassed) foundObjects = cluster;
+								return foundObjects;
+							});
+							return foundObjects;
+						});
+						return foundObjects;
+					});
+				});
+			return foundObjects;
+		};
+		
+		return function () {
+			var potentialMatches = getPotentialMatches();
+			
+			if(potentialMatches) {
+				var hintFunctionID = window.setTimeout(function() {
+					potentialMatches.map(function(match) {match.rotation = 15;});
+				}, hintBounce.timeout);
+				return hintFunctionID;
+			} else {
+				window.confirm('No more matches can be made. Shall I shuffle the board?');
+				gamefield = _.shuffle(gamefield).map(function(column) { //Not a /good/ shuffle, but given the number of times the player will encounter it it won't matter.
+					return _.shuffle(column);
+				});
+				return 0;
+			}
+		};
+	}();
+	
+	var stopHighlightingMatches = function() {
+		//TODO: This.
+	};
+	
+	
+	
+	
+	
+// →→→ Initial Setup ←←←
+	var canvas = document.getElementById('main');
+	
+	var stage = new createjs.Stage(canvas);
+	stage.snapToPixel = true;
+	stage.enableMouseOver();
+	createjs.Touch.enable(stage, true); //'True' here disables multi-touch. Good.
+	createjs.Ticker.addListener(stage);
+	
+	var spriteSheetA = new createjs.Bitmap("images/CC_Sprite_Sheet.png");
+	
+	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
+	var mode = typeof iMode !== 'undefined' && iMode || 'turns';
+	if(numTileTypes < 3) {
+		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
+		throw "too few tiles";
+	}
+	
+	var Width = canvas.width;                 var Height = canvas.height;
+	var tileWidth = 71;                       var tileHeight = 63;
+	var xTiles = Math.floor(Width/tileWidth); var yTiles = Math.floor(Height/tileHeight);
+	
+	// var mouseX = 0; var mouseY = 0;
+	var selectedObject = null;
+	var selectionIndicator = null;
+	
+	var score = watchableCounter(0);
+	var remainingTiles = watchableCounter(15);
+	var remainingTime = watchableCounter(180);
+	var gameStatus = watchableCounter('playing');
+	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
+	
+	var gamefield = makeField();
+	gamefield.map(function(row, row_count) {
+		row.map(function(tile, column_count) {
+			gamefield[row_count][column_count] = getNewTile(row_count, column_count);
+		});});
+	
+	var noInput = false;	//We'll set this to true when we're animating the board, so that we don't select objects that get removed accidentally.
+	
+	var potentialMatches = function(unrotatedMatches) {
+		var twist = function(match) {
+			var newMatch = [];
+			match.map(function(column, x) {
+				column.map(function(num, y) {
+					y = column.length-y;
+					newMatch[y] = newMatch[y] ? newMatch[y] : [];
+					newMatch[y][x] = num;
+				});
+			});
+			return newMatch;
+		};
+		
+		var matches = [];
+		unrotatedMatches.map(function(match) {
+			matches.push(match);
+			match = twist(match); matches.push(match);
+			match = twist(match); matches.push(match);
+			match = twist(match); matches.push(match);
+		});
+		return matches;
+	}([ [
+			[1,1,0,1]
+		], [
+			[1,1,0],
+			[0,0,1]
+		], [
+			[0,0,1],
+			[1,1,0]
+		], [
+			[1,0,1],
+			[0,1,0]
+		] ])
+	.map(function(matchBlock) { //The rotation bit seems to be offsetting by 1 sometimes. Trim undefined first elements.
+		if(matchBlock[0] === undefined) matchBlock = _.tail(matchBlock);
+		return matchBlock.map(function(matchLine) {
+			if(matchLine[0] === undefined) matchLine = _.tail(matchLine);
+			return matchLine;
+		});
+	});
+	/* //Cleaner debugging info.
+	potentialMatches.map(function(match, index) {
+		console.log(index + ':');
+		match.map(function(match) {
+			console.log(match.map(function(a) {
+				return a ? '▓' : '░';
+			}).reduce(function(a,b) {
+				return a + b;
+			}));
+		});
+	});
+	*/
+	
+	var hintBounce = {
+		timeout: 100,
+		id: 0,
+		tiles: false
+	};
+	checkForMatches();
+	
+	
+	
+	
+	
+// →→→ EVENTS ←←←
+	
 	stage.onMouseDown = function(evt) {
-		if(evt.nativeEvent.which===1) { //1 is the left mouse button. We won't use right because I think that doesn't play nicely with EaselFL.
+		if(isRightButton(evt.nativeEvent.which)) { //1 is the left mouse button. We won't use right because I think that doesn't play nicely with EaselFL.
 			if(canInput()) {
 				var overTileX = pixToTile(evt.stageX, tileWidth);
 				var overTileY = pixToTile(evt.stageY, tileHeight);
 				var newSelectedObject = gamefield[overTileX][overTileY];
+				
+				//console.log(newSelectedObject);
 				
 				if(tilesAreAdjacent(newSelectedObject, selectedObject)) {
 					switchTiles(newSelectedObject, selectedObject);
@@ -485,13 +669,19 @@ startNewGame = function() {
 					selectObject(newSelectedObject);
 				}
 			}
-			swallowMouseEvent(evt);
+			return swallowMouseEvent(evt);
 		}
+		/*
+		var overTileX = pixToTile(evt.stageX, tileWidth);
+		var overTileY = pixToTile(evt.stageY, tileHeight);
+		gamefield[overTileX][overTileY].remove();
+		gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, undefined, 1);
+		*/
 	};
 	
 	
 	stage.onMouseMove = function(evt) {
-		if(evt.nativeEvent.which===1) {
+		if(isRightButton(evt.nativeEvent.which)) {
 			if(canInput()) {
 				var overTileX = pixToTile(evt.stageX, tileWidth);
 				var overTileY = pixToTile(evt.stageY, tileHeight);
@@ -502,7 +692,7 @@ startNewGame = function() {
 					selectObject();
 				}
 			}
-			swallowMouseEvent(evt);
+			return swallowMouseEvent(evt);
 		}
 	};
 	

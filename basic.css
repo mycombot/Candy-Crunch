@@ -22,11 +22,13 @@ div#game {
 }
 
 canvas {
-	background-image: url("images/tile-background.png"), url("images/dried mud.png");
+	background-image: url("images/CC_Gameboard_2.png"), url("images/CC_BG.jpg");
 	box-shadow: 3px 3px 4px #000;
 	padding-bottom: 0px;
 	position:relative;
 }
+
+/*Note: There are patterns related to local, global, and function calls in code.*/
 
 p#score {
 	float: left;
