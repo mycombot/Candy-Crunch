@@ -1,4 +1,4 @@
-/*global createjs console _ $ iTiles iMode*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
+/*global createjs console _ $ iTiles iMode iScore iMoves iTime*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
 //Chromium: Run with --allow-file-access-from-files. It'll be fine in production, once we get it on a remote server.
 
 /* === PROGRAM OVERVIEW ===
@@ -145,7 +145,7 @@ startNewGame = function() {
 	
 	
 	var canInput = function() { //Returns true if we have time left or moves left.
-		return _.if(mode === 'turns', remainingTiles.value(), remainingTime.value()) && !noInput;
+		return !noInput && !paused;
 	};
 	
 	
@@ -198,6 +198,8 @@ startNewGame = function() {
 	
 	var switchTiles = function(a,b) {
 		noInput = true;
+		noSwitch = true;
+		if(hintBounce.tiles.length) stopHighlightingMatches();
 		
 		var holder = {};
 		holder.tileX = b.tileX;		holder.tileY = b.tileY; //[TILES]: Switch tiles…
@@ -213,13 +215,17 @@ startNewGame = function() {
 			.call(function() {
 				var aMatches = [linesInDir(a, 'h'), linesInDir(a, 'v')];
 				var bMatches = [linesInDir(b, 'h'), linesInDir(b, 'v')];
-				if(		aMatches[0].length > 1 || //[TILES]: see if we made any matches.
-						aMatches[1].length > 1 || //1 because we want 2 or more tiles matches, 2 because it doesn't include the switched tile, so 3 alltogether.)
-						bMatches[0].length > 1 || //Refactor: This test is somewhat duplicated. Perhaps we could compute the filtered removeMatches earlier and test it's length?
-						bMatches[1].length > 1) { //[TILES]: Perhaps removes the tiles, and all that that entails with regards to bonuses generated and bonuses used.
+				if(a.index < 0 || b.index < 0 && b.index != a.index) {
+					console.log('great zot');
+				} else if(	aMatches[0].length > 1 || //[TILES]: see if we made any matches.
+							aMatches[1].length > 1 || //1 because we want 2 or more tiles matches, 2 because it doesn't include the switched tile, so 3 alltogether.)
+							bMatches[0].length > 1 || //Refactor: This test is somewhat duplicated. Perhaps we could compute the filtered removeMatches earlier and test it's length?
+							bMatches[1].length > 1) { //[TILES]: Perhaps removes the tiles, and all that that entails with regards to bonuses generated and bonuses used.
 					removeMatches([[a, aMatches], [b, bMatches]].filter(function(matchPair) { //At least one is good, but we need to not pass along the other one if it's not good. So, we'll filter the list.
 							return matchPair[1][0].length > 1 || matchPair[1][1].length > 1;
 						}));
+					if(mode === 'turns') remainingTiles.add(-1);
+					stopHighlightingMatches();
 					// removeMatches(searchForMatches()); //Slower than the above way, not that it matters. Since we did the first way first, lets just leave it in.
 				} else { //[TILES]: Or perhaps switch the tiles back.
 					a.tileX = b.tileX;			a.tileY = b.tileY;
@@ -228,10 +234,17 @@ startNewGame = function() {
 					gamefield[b.tileX][b.tileY] = b;
 								
 					noInput = false; //Enable input early, it'll feel more responsive.
-					createjs.Tween.get(a)
+					
+					var tween;
+					tween = createjs.Tween.get(a)
 						.to({x:a.xFromTile(), y:a.yFromTile()}, 350, createjs.Ease.cubicInOut); //Tomorrow -- recompute these based on tile positions, they're sliding around.
-					createjs.Tween.get(b)
+					tween = createjs.Tween.get(b)
 						.to({x:b.xFromTile(), y:b.yFromTile()}, 350, createjs.Ease.cubicInOut);
+					
+					hintBounce.id = window.setTimeout(function() {
+						if(hintBounce.tiles.length) highlightPotentialMatches(hintBounce.tiles);
+						noSwitch = false;
+					}, tween.duration+25); //Something seems to need to run first; no clue what.
 				}
 			});
 	};
@@ -285,15 +298,17 @@ startNewGame = function() {
 				var newTile = getNewTile(bonusTile.x, bonusTile.y, _.head(bonusTile.types), bonusTile.index);
 				gamefield[bonusTile.x][bonusTile.y] = newTile;
 				newTile.bonuses = bonusTile.types;
-				
+				if(_.contains(newTile.bonuses, 'like')) newTile.index = -1;
 			if(tweenCount === 0 && callback) callback();
 			});
 		};
 		
-		var speed = 400000;
+		var fallSpeed = 400000;
 		var fallTiles = function(callback) {
 			var tweenCount = 0;
+			var scoreDelta = 0;
 			_.range(xTiles).map(function(x) { //Tiles falling down to fill gaps left by replaced tiles.
+				//scoreDelta += gamefield[x].filter(function(tile) {return tile === null;}).length;
 				_.range(yTiles-1, -1, -1).map(function(y) {
 					var tile = gamefield[x][y];
 					if(tile) {
@@ -303,7 +318,7 @@ startNewGame = function() {
 							createjs.Tween.get(tile)
 							.to(
 								{y:tile.yFromTile(newY)},
-								Math.sqrt(Math.abs(tile.tileY-newY)*speed), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
+								Math.sqrt(Math.abs(tile.tileY-newY)*fallSpeed), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
 								createjs.Ease.bounceOut) //bounceOut also works nicely here, but it's a bit distracting.
 							.call(function() {
 								tweenCount -= 1;
@@ -318,7 +333,10 @@ startNewGame = function() {
 						}
 					}
 				});
+				
 				var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
+				scoreDelta += lastY;
+				
 				_.range(0, lastY).map(function(y) {
 					var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
 					gamefield[x][y] = tile;
@@ -328,7 +346,7 @@ startNewGame = function() {
 					createjs.Tween.get(tile)
 						.to(
 							{y:targetY},
-							Math.sqrt(Math.abs(lastY)*speed),
+							Math.sqrt(Math.abs(lastY)*fallSpeed),
 							createjs.Ease.bounceOut)
 						.call(function() {
 							tweenCount -= 1;
@@ -339,6 +357,8 @@ startNewGame = function() {
 						});
 				});
 			});
+			
+			score.add(scoreDelta*10);
 			if(tweenCount === 0 && callback) callback();
 		};
 		
@@ -371,8 +391,16 @@ startNewGame = function() {
 		return function removeMatchesInternal(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
 			if(!matches.length) {
 				noInput = false;
+				noSwitch = false;
+				if(remainingTiles.value() <= 0) {
+					runGameOver();
+				} else {
+					checkForPotentialMatches();
+				}
 				return;
 			}
+			
+			hintBounce.tiles = [];
 			
 			var newBonuses = matches.map(function(matchPair) {
 				return getBonus(matchPair[0], matchPair[1]);
@@ -483,7 +511,7 @@ startNewGame = function() {
 	};
 	
 	
-	var checkForMatches = function() {
+	var checkForPotentialMatches = function() {
 		var getPotentialMatches = function() {
 			var order = _(_.range(numTileTypes+1)).shuffle();
 			var foundObjects = false;
@@ -522,25 +550,92 @@ startNewGame = function() {
 		};
 		
 		return function () {
-			var potentialMatches = getPotentialMatches();
+			if(hintBounce.id !== 0) {
+				console.warn("hintBounce.id is " + hintBounce.id + ", must be 0. An existing function may already be scheduled, and must be cleared first.");
+				throw "uncleared hintBounce.id";
+			}
+			var matches = getPotentialMatches();
 			
-			if(potentialMatches) {
-				var hintFunctionID = window.setTimeout(function() {
-					potentialMatches.map(function(match) {match.rotation = 15;});
+			if(matches) {
+				hintBounce.id = window.setTimeout(function() {
+					highlightPotentialMatches(matches);
+					hintBounce.tiles = matches;
 				}, hintBounce.timeout);
-				return hintFunctionID;
 			} else {
-				window.confirm('No more matches can be made. Shall I shuffle the board?');
-				gamefield = _.shuffle(gamefield).map(function(column) { //Not a /good/ shuffle, but given the number of times the player will encounter it it won't matter.
-					return _.shuffle(column);
-				});
+				var conf = window.confirm('No more matches can be made. Shall I shuffle the board?');
+				if(conf) {
+					gamefield = _.shuffle(gamefield).map(function(column) { //Not a /good/ shuffle, but given the number of times the player will encounter it it shouldn't matter.
+						return _.shuffle(column);
+					});
+				} else {
+					window.alert("The previous dialog will pop up in half a minute if you can't find a match.");
+					hintBounce.id = window.setTimeout(checkForPotentialMatches, 30000); //30 seconds
+				}
 				return 0;
 			}
 		};
 	}();
 	
+	
+	var highlightingPotentialMatches = false;
+	var highlightPotentialMatches = function(matches) {
+		if(highlightingPotentialMatches === false) {
+			highlightingPotentialMatches = true;
+			matches.map(function(tile) {
+				if(!createjs.Tween.hasActiveTweens(tile)) {
+					tile.regXBeforeHighlight = tile.regX; tile.regYBeforeHighlight = tile.regY;
+					tile.regX += tileWidth / 2;           tile.regY += tileHeight;
+					tile.x += tileWidth / 2;              tile.y += tileHeight;
+					
+					var targetY = tile.regY;
+					var tween = createjs.Tween.get(tile, {loop:true})
+						.to(
+							{scaleX:1.15, scaleY:0.85},
+							200,
+							createjs.Ease.sineOut)
+						.to(
+							{scaleX:1.0, scaleY:1.0},
+							200,
+							createjs.Ease.sineIn)
+						.to(
+							{regY: tile.regY+6},
+							175,
+							createjs.Ease.sineOut)
+						.to(
+							{regY: tile.regY},
+							175,
+							createjs.Ease.sineIn);
+					//tile.tween = tween; //[BOUNCE]
+				} else {
+					console.log('Skipped doing bounce; object already had tween.');
+				}
+			});
+		}
+	};
+	
 	var stopHighlightingMatches = function() {
-		//TODO: This.
+		//if(highlightingPotentialMatches === true) {
+			highlightingPotentialMatches = false;
+			hintBounce.tiles.map(function(tile) {
+				//tile.tween.loop = false; //[BOUNCE] We have to end this here-and-now, because it will conflict with the switching animation otherwise.
+				createjs.Tween.removeTweens(tile);
+				tile.regX = tile.regXBeforeHighlight; tile.regY = tile.regYBeforeHighlight;
+				delete tile.regXBeforeHighlight;      delete tile.regYBeforeHighlight;
+				tile.x = tile.xFromTile();            tile.y = tile.yFromTile();
+				tile.scaleX = 1; tile.scaleY = 1;
+				//delete tile.tween; //[BOUNCE]
+			});
+			window.clearTimeout(hintBounce.id);
+			hintBounce.id = 0;
+		//}
+	};
+	
+	
+	var runGameOver = function() {
+		paused = true;
+		createjs.Ticker.setPaused(true);
+		gameStatus.set('finished');
+		window.alert("Game Over!\nYour score is " + score.value() + " calories crunched.");
 	};
 	
 	
@@ -558,8 +653,6 @@ startNewGame = function() {
 	
 	var spriteSheetA = new createjs.Bitmap("images/CC_Sprite_Sheet.png");
 	
-	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
-	var mode = typeof iMode !== 'undefined' && iMode || 'turns';
 	if(numTileTypes < 3) {
 		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
 		throw "too few tiles";
@@ -573,10 +666,17 @@ startNewGame = function() {
 	var selectedObject = null;
 	var selectionIndicator = null;
 	
-	var score = watchableCounter(0);
-	var remainingTiles = watchableCounter(15);
-	var remainingTime = watchableCounter(180);
-	var gameStatus = watchableCounter('playing');
+	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
+	var mode = typeof iMode !== 'undefined' && iMode || 'turns'; //turns, time
+	
+	var score = watchableCounter(
+		typeof iScore !== 'undefined' && iScore || 0);
+	var remainingTiles = watchableCounter(
+		typeof iMoves !== 'undefined' && iMoves || 15);
+	var remainingTime = watchableCounter(
+		typeof iTime !== 'undefined' && iTime || 180);
+	
+	var gameStatus = watchableCounter('playing'); //playing, finished
 	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
 	
 	var gamefield = makeField();
@@ -585,7 +685,9 @@ startNewGame = function() {
 			gamefield[row_count][column_count] = getNewTile(row_count, column_count);
 		});});
 	
+	var paused = false;
 	var noInput = false;	//We'll set this to true when we're animating the board, so that we don't select objects that get removed accidentally.
+	var noSwitch = false;
 	
 	var potentialMatches = function(unrotatedMatches) {
 		var twist = function(match) {
@@ -603,9 +705,9 @@ startNewGame = function() {
 		var matches = [];
 		unrotatedMatches.map(function(match) {
 			matches.push(match);
-			match = twist(match); matches.push(match);
-			match = twist(match); matches.push(match);
-			match = twist(match); matches.push(match);
+			_.range(3).map(function() {
+				match = twist(match); matches.push(match);
+			});
 		});
 		return matches;
 	}([ [
@@ -627,6 +729,7 @@ startNewGame = function() {
 			return matchLine;
 		});
 	});
+	
 	/* //Cleaner debugging info.
 	potentialMatches.map(function(match, index) {
 		console.log(index + ':');
@@ -641,11 +744,24 @@ startNewGame = function() {
 	*/
 	
 	var hintBounce = {
-		timeout: 100,
+		timeout: 4000,
 		id: 0,
-		tiles: false
+		tiles: [],
 	};
-	checkForMatches();
+	checkForPotentialMatches();
+	
+	if(mode === 'time') {
+		var numSeconds = remainingTime.value();
+		_.range(1, numSeconds).map(function(passed) {
+			window.setTimeout(function() {
+				remainingTime.set(numSeconds-passed);
+			}, passed*1000);
+		});
+		window.setTimeout(function() {
+			remainingTime.set(0);
+			runGameOver();
+		}, numSeconds*1000);
+	}
 	
 	
 	
@@ -663,20 +779,22 @@ startNewGame = function() {
 				//console.log(newSelectedObject);
 				
 				if(tilesAreAdjacent(newSelectedObject, selectedObject)) {
-					switchTiles(newSelectedObject, selectedObject);
-					selectObject();
+					if(!noSwitch) {
+						switchTiles(newSelectedObject, selectedObject);
+						selectObject();
+					}
 				} else { //We won't deselect if we click on the same tile because it'll play awkwardly with fat fingers double-tapping on touchscreens.
 					selectObject(newSelectedObject);
 				}
 			}
 			return swallowMouseEvent(evt);
 		}
-		/*
+		
 		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		gamefield[overTileX][overTileY].remove();
 		gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, undefined, 1);
-		*/
+		
 	};
 	
 	
@@ -688,8 +806,10 @@ startNewGame = function() {
 				var over = gamefield[overTileX][overTileY];
 				
 				if(tilesAreAdjacent(over, selectedObject)) {
-					switchTiles(over, selectedObject);
-					selectObject();
+					if(!noSwitch) {
+						switchTiles(over, selectedObject);
+						selectObject();
+					}
 				}
 			}
 			return swallowMouseEvent(evt);
