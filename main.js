@@ -215,8 +215,9 @@ startNewGame = function() {
 			.call(function() {
 				var aMatches = [linesInDir(a, 'h'), linesInDir(a, 'v')];
 				var bMatches = [linesInDir(b, 'h'), linesInDir(b, 'v')];
-				if(a.index < 0 || b.index < 0 && b.index != a.index) {
-					console.log('great zot');
+				if((a.index < 0 || b.index < 0) && b.index != a.index) {
+					removeTilesByIndex(a,b);
+					if(mode === 'turns') remainingTiles.add(-1);
 				} else if(	aMatches[0].length > 1 || //[TILES]: see if we made any matches.
 							aMatches[1].length > 1 || //1 because we want 2 or more tiles matches, 2 because it doesn't include the switched tile, so 3 alltogether.)
 							bMatches[0].length > 1 || //Refactor: This test is somewhat duplicated. Perhaps we could compute the filtered removeMatches earlier and test it's length?
@@ -226,7 +227,6 @@ startNewGame = function() {
 						}));
 					if(mode === 'turns') remainingTiles.add(-1);
 					stopHighlightingMatches();
-					// removeMatches(searchForMatches()); //Slower than the above way, not that it matters. Since we did the first way first, lets just leave it in.
 				} else { //[TILES]: Or perhaps switch the tiles back.
 					a.tileX = b.tileX;			a.tileY = b.tileY;
 					gamefield[a.tileX][a.tileY] = a;
@@ -303,65 +303,6 @@ startNewGame = function() {
 			});
 		};
 		
-		var fallSpeed = 400000;
-		var fallTiles = function(callback) {
-			var tweenCount = 0;
-			var scoreDelta = 0;
-			_.range(xTiles).map(function(x) { //Tiles falling down to fill gaps left by replaced tiles.
-				//scoreDelta += gamefield[x].filter(function(tile) {return tile === null;}).length;
-				_.range(yTiles-1, -1, -1).map(function(y) {
-					var tile = gamefield[x][y];
-					if(tile) {
-						var newY = gamefield[x].lastIndexOf(null);
-						if(newY > y) {
-							tweenCount += 1;
-							createjs.Tween.get(tile)
-							.to(
-								{y:tile.yFromTile(newY)},
-								Math.sqrt(Math.abs(tile.tileY-newY)*fallSpeed), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
-								createjs.Ease.bounceOut) //bounceOut also works nicely here, but it's a bit distracting.
-							.call(function() {
-								tweenCount -= 1;
-								if(tweenCount === 0) {
-									if(callback) callback();
-									tweenCount -= 1;
-								}
-							});
-							tile.tileY = newY;
-							gamefield[x][y] = null;
-							gamefield[tile.tileX][tile.tileY] = tile;
-						}
-					}
-				});
-				
-				var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
-				scoreDelta += lastY;
-				
-				_.range(0, lastY).map(function(y) {
-					var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
-					gamefield[x][y] = tile;
-					var targetY = tile.y;
-					tile.y -= lastY*tileHeight;
-					tweenCount += 1;
-					createjs.Tween.get(tile)
-						.to(
-							{y:targetY},
-							Math.sqrt(Math.abs(lastY)*fallSpeed),
-							createjs.Ease.bounceOut)
-						.call(function() {
-							tweenCount -= 1;
-							if(tweenCount === 0) {
-								if(callback) callback();
-								tweenCount -= 1;
-							}
-						});
-				});
-			});
-			
-			score.add(scoreDelta*10);
-			if(tweenCount === 0 && callback) callback();
-		};
-		
 		var tilesAffectedByBonus = function(tile) {
 			//console.log(tile.bonuses);
 			var affectedTiles = [];
@@ -400,19 +341,31 @@ startNewGame = function() {
 				return;
 			}
 			
-			hintBounce.tiles = [];
+			stopHighlightingMatches();
+			stopFutureMatchHighlight();
 			
-			var newBonuses = matches.map(function(matchPair) {
-				return getBonus(matchPair[0], matchPair[1]);
-				}).filter(function(bonus) {return bonus;});
-			
+			var newBonuses = [];
 			var tilesToRemove = [];
-			matches.map(function(matchPair) {
-				tilesToRemove = tilesToRemove.concat(
-					matchPair[1][0].length > 1 ? matchPair[1][0] : [],
-					matchPair[1][1].length > 1 ? matchPair[1][1] : [],
-					matchPair[0]);
-			});
+			if(matches[0][1].length || matches.length > 1) {
+				newBonuses = matches.map(function(matchPair) {
+					return getBonus(matchPair[0], matchPair[1]);
+					}).filter(function(bonus) {return bonus;});
+				
+				matches.map(function(matchPair) {
+					tilesToRemove = tilesToRemove.concat(
+						matchPair[1][0].length > 1 ? matchPair[1][0] : [],
+						matchPair[1][1].length > 1 ? matchPair[1][1] : [],
+						matchPair[0]);
+				});
+			} else { //This mode is the one where we remove all the tiles of a certain type.
+				tilesToRemove = tilesToRemove.concat(matches[0][0], matches[0][1]);
+				gamefield.map(function(column) {
+					tilesToRemove = tilesToRemove.concat(column.filter(function(tile) {
+						return tile.index === matches[0][1].index;
+					}));
+				});
+			}
+			console.log(tilesToRemove);
 			
 			var bonusesToApply = [];
 			(function computeBonusRemoves (toCheck, first) {
@@ -443,6 +396,76 @@ startNewGame = function() {
 			//Check for additional removable matches and remove them using this function.
 		};
 	}();
+	
+	
+	var removeTilesByIndex = function(a,b) { // a xor b is a chocolate-covered candy (one with index -1)
+		if(a.index > b.index) { //Let's have the "a" object be the chocolate-covered one.
+			var tmp = a;
+			a = b;
+			b = tmp;
+		}
+		removeMatches([[a, b]]);
+	};
+	
+	
+	var fallSpeed = 400000;
+	var fallTiles = function(callback) {
+		var tweenCount = 0;
+		var scoreDelta = 0;
+		_.range(xTiles).map(function(x) { //Tiles falling down to fill gaps left by replaced tiles.
+			_.range(yTiles-1, -1, -1).map(function(y) {
+				var tile = gamefield[x][y];
+				if(tile) {
+					var newY = gamefield[x].lastIndexOf(null);
+					if(newY > y) {
+						tweenCount += 1;
+						createjs.Tween.get(tile)
+						.to(
+							{y:tile.yFromTile(newY)},
+							Math.sqrt(Math.abs(tile.tileY-newY)*fallSpeed), //Maybe add 50*tile here, to add in a bit of inital inertia simulation. Break up blocks falling down on top of other falling blocks a bit.
+							createjs.Ease.bounceOut) //bounceOut also works nicely here, but it's a bit distracting.
+						.call(function() {
+							tweenCount -= 1;
+							if(tweenCount === 0) {
+								if(callback) callback();
+								tweenCount -= 1;
+							}
+						});
+						tile.tileY = newY;
+						gamefield[x][y] = null;
+						gamefield[tile.tileX][tile.tileY] = tile;
+					}
+				}
+			});
+			
+			var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
+			scoreDelta += lastY;
+			
+			_.range(0, lastY).map(function(y) {
+				var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
+				gamefield[x][y] = tile;
+				var targetY = tile.y;
+				tile.y -= lastY*tileHeight;
+				tweenCount += 1;
+				createjs.Tween.get(tile)
+					.to(
+						{y:targetY},
+						Math.sqrt(Math.abs(lastY)*fallSpeed),
+						createjs.Ease.bounceOut)
+					.call(function() {
+						tweenCount -= 1;
+						if(tweenCount === 0) {
+							if(callback) callback();
+							tweenCount -= 1;
+						}
+					});
+			});
+		});
+		
+		score.add(scoreDelta*10);
+		if(tweenCount === 0 && callback) callback();
+	};
+	
 	
 	var searchForMatches = function () {
 		var matchesFound = _
@@ -535,8 +558,12 @@ startNewGame = function() {
 											});
 										}),
 									true);
-								var clusterPassed = (undefined === _.find(_.pluck(cluster, 'index'), function(index) {
+								var clusterPassed =
+								(undefined === _.find(_.pluck(cluster, 'index'), function(index) {
 									return index != targetTileType;
+								})) &&
+								(undefined === _.find(_.pluck(cluster, 'rotation'), function(rotation) { //We can't bounce the rotated tiles. This may cause a mis-called game over, but the chances are slim -- and we need to see if we even ever want to rotate pieces. (The solution is to manually rotate the graphic, I think. Rotation is bad in easeljs for our purposes.)
+									return rotation;
 								}));
 								if(clusterPassed) foundObjects = cluster;
 								return foundObjects;
@@ -579,10 +606,22 @@ startNewGame = function() {
 	
 	var highlightingPotentialMatches = false;
 	var highlightPotentialMatches = function(matches) {
+		if(!matches) {
+			matches = hintBounce.tiles;
+			if(!matches.length) {
+				checkForPotentialMatches();
+			}
+		}
 		if(highlightingPotentialMatches === false) {
+			if(noInput) {
+				hintBounce.tiles = matches;
+				hintBounce.id = window.setTimeout(highlightPotentialMatches, 1000);
+				return;
+			}
 			highlightingPotentialMatches = true;
 			matches.map(function(tile) {
 				if(!createjs.Tween.hasActiveTweens(tile)) {
+					tile.regX = tile.regX || 0;           tile.regY = tile.regY || 0;	//This seems to be getting undefined somewhere.
 					tile.regXBeforeHighlight = tile.regX; tile.regYBeforeHighlight = tile.regY;
 					tile.regX += tileWidth / 2;           tile.regY += tileHeight;
 					tile.x += tileWidth / 2;              tile.y += tileHeight;
@@ -628,6 +667,12 @@ startNewGame = function() {
 			window.clearTimeout(hintBounce.id);
 			hintBounce.id = 0;
 		//}
+	};
+	
+	var stopFutureMatchHighlight = function() {
+		hintBounce.tiles = [];
+		window.clearTimeout(hintBounce.id);
+		hintBounce.id = 0;
 	};
 	
 	
@@ -776,7 +821,7 @@ startNewGame = function() {
 				var overTileY = pixToTile(evt.stageY, tileHeight);
 				var newSelectedObject = gamefield[overTileX][overTileY];
 				
-				//console.log(newSelectedObject);
+				console.log(newSelectedObject);
 				
 				if(tilesAreAdjacent(newSelectedObject, selectedObject)) {
 					if(!noSwitch) {
