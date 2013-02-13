@@ -303,6 +303,80 @@ startNewGame = function() {
 			});
 		};
 		
+		var fireballLife = 700;
+		var fireballDistance = 700; //Should be larger than the game board plus the fireball.
+		var fireballStretch = 0.7;
+		var animateFireballs = function(source_tile, fireballs) {
+			fireballs.map(function(fireball) {
+				fireball.sourceRect = new createjs.Rectangle(234, 512, 63, 43);
+				console.log(fireball);
+				fireball.regX = fireball.sourceRect.width/2; fireball.regY = fireball.sourceRect.height/2;
+				fireball.x = source_tile.x + tileWidth/2; fireball.y = source_tile.y + tileHeight/2;
+				stage.addChild(fireball);
+				createjs.Tween.get(fireball)
+					.to({
+							x: fireball.x+fireball.escapeVector[0]*fireballDistance,
+							y: fireball.y+fireball.escapeVector[1]*fireballDistance,
+							scaleX: 1+fireballStretch,
+							scaleY: 1-fireballStretch
+						}, fireballLife, createjs.Ease.linear)
+					.call(function() {
+						stage.removeChild(fireball);
+					});
+			});
+		};
+		
+		var spawnBonusEffects = function(tiles) {
+			tiles.map(function(tile) {
+				tile.bonuses.map(function(bonusName) {
+					var fireballs;
+					switch(bonusName) {
+						case 'hor':
+							console.log(bonusName);
+							fireballs = [spriteSheetA.clone(), spriteSheetA.clone()];
+							fireballs[1].rotation = 180;
+							fireballs[0].escapeVector = [-1,0];
+							fireballs[1].escapeVector = [1,0];
+							animateFireballs(tile, fireballs);
+							break;
+						case 'ver':
+							console.log(bonusName);
+							fireballs = [spriteSheetA.clone(), spriteSheetA.clone()];
+							fireballs[0].rotation = 270;
+							fireballs[1].rotation = 90;
+							fireballs[0].escapeVector = [0,1];
+							fireballs[1].escapeVector = [0,-1];
+							animateFireballs(tile, fireballs);
+							break;
+						case 'point':
+							console.log(bonusName);
+							var explosion = spriteSheetA.clone();
+							explosion.sourceRect = new createjs.Rectangle(0, 512, 234, 210);
+							explosion.regX = explosion.sourceRect.width/2; explosion.regY = explosion.sourceRect.height/2;
+							explosion.x = tile.x + tileWidth/2; explosion.y = tile.y + tileHeight/2;
+							explosion.alpha = 1;
+							explosion.scaleX = 0.5; explosion.scaleY = 0.5;
+							stage.addChild(explosion);
+							createjs.Tween.get(explosion)
+								.to({
+									alpha: 0,
+									scaleX: 1.5, scaleY: 1.5
+								}, 500, createjs.Ease.circOut)
+								.call(function() {
+									stage.removeChild(explosion);
+								});
+							break;
+						case 'like':
+							console.log(bonusName, 'TODO: Lightning to index ' + tile.matchedWithIndex + '.');
+							break;
+						default:
+							console.warn('spawnBonusEffects was passed a tile with a bonus of type \'' + bonusName + '\', which isn\'t a valid bonus.');
+							throw "bad effect name";
+					}
+				});
+			});
+		};
+		
 		var tilesAffectedByBonus = function(tile) {
 			//console.log(tile.bonuses);
 			var affectedTiles = [];
@@ -365,7 +439,7 @@ startNewGame = function() {
 					}));
 				});
 			}
-			console.log(tilesToRemove);
+			//console.log(tilesToRemove);
 			
 			var bonusesToApply = [];
 			(function computeBonusRemoves (toCheck, first) {
@@ -382,6 +456,8 @@ startNewGame = function() {
 					computeBonusRemoves(init);
 				}
 			})(tilesToRemove, function() {tilesToRemove=[];});
+			
+			spawnBonusEffects(bonusesToApply.filter(function(tile) {return tile.bonuses.length;}));
 			
 			removeMatchingTilesAndAddBonuses(
 				tilesToRemove,
@@ -404,6 +480,7 @@ startNewGame = function() {
 			a = b;
 			b = tmp;
 		}
+		a.matchedWithIndex = b.index;
 		removeMatches([[a, b]]);
 	};
 	
@@ -680,7 +757,9 @@ startNewGame = function() {
 		paused = true;
 		createjs.Ticker.setPaused(true);
 		gameStatus.set('finished');
-		window.alert("Game Over!\nYour score is " + score.value() + " calories crunched.");
+		window.setTimeout(function(){
+			window.alert("Game Over!\nYour score is " + score.value() + " calories crunched.");
+		}, 100);
 	};
 	
 	
@@ -821,7 +900,7 @@ startNewGame = function() {
 				var overTileY = pixToTile(evt.stageY, tileHeight);
 				var newSelectedObject = gamefield[overTileX][overTileY];
 				
-				console.log(newSelectedObject);
+				//console.log(newSelectedObject);
 				
 				if(tilesAreAdjacent(newSelectedObject, selectedObject)) {
 					if(!noSwitch) {
