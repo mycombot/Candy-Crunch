@@ -31,6 +31,8 @@ p.textDisplay {
 	border-radius: 10px;
 	box-shadow: inset 5px 5px 10px -5px black, inset -5px -5px 10px -5px white;
 	margin: 0px;
+	padding-top: 4px;
+	height: 37px;
 }
 
 p#score {
@@ -52,7 +54,7 @@ div.textDisplayBorder {
 	background-color: #F260B1;
 	background: -webkit-repeating-linear-gradient(45deg, #FFC2C7 0px, #FFC2C7 25px, #F260B1 25px, #F260B1 60px);
 	background: repeating-linear-gradient(50deg, #F260B1 0px, #FFC2C7 1px, #FFC2C7 25px, #F260B1 26px, #F260B1 60px);
-	border-radius: 10px;
+	border-radius: 15px;
 	margin-bottom: 1em;
 	padding: 8px;
 	overflow: visible;

@@ -125,11 +125,11 @@ startNewGame = function() {
 			
 			tileToReturn.remove = function() { //Note: Only call if you've actually added this tile to the stage.
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
-				stage.removeChild(tileToReturn);
+				tileContainer.removeChild(tileToReturn);
 			};
 			
 			if(type!==undefined || linesInDir(tileToReturn, 'h').length < 2 && linesInDir(tileToReturn, 'v').length < 2) {
-				stage.addChild(tileToReturn);
+				tileContainer.addChild(tileToReturn);
 				return tileToReturn;
 			} else {
 				//console.log('Adding tile, failed no-3s test. Retrying.');
@@ -179,7 +179,7 @@ startNewGame = function() {
 					selectionIndicator.x = tile.xFromTile();
 					selectionIndicator.y = tile.yFromTile();
 				} else {
-					stage.removeChild(selectionIndicator);
+					effectContainer.removeChild(selectionIndicator);
 					selectionIndicator = null;
 				}
 			} else {
@@ -187,7 +187,7 @@ startNewGame = function() {
 					selectionIndicator = spriteSheetA.clone();
 					selectionIndicator.sourceRect = new createjs.Rectangle(0, 145, 71, 71),
 					selectionIndicator.regY = 4;
-					stage.addChild(selectionIndicator);
+					effectContainer.addChild(selectionIndicator);
 					selectionIndicator.x = tile.xFromTile();
 					selectionIndicator.y = tile.yFromTile();
 				}
@@ -312,7 +312,7 @@ startNewGame = function() {
 				console.log(fireball);
 				fireball.regX = fireball.sourceRect.width/2; fireball.regY = fireball.sourceRect.height/2;
 				fireball.x = source_tile.x + tileWidth/2; fireball.y = source_tile.y + tileHeight/2;
-				stage.addChild(fireball);
+				effectContainer.addChild(fireball);
 				createjs.Tween.get(fireball)
 					.to({
 							x: fireball.x+fireball.escapeVector[0]*fireballDistance,
@@ -321,7 +321,7 @@ startNewGame = function() {
 							scaleY: 1-fireballStretch
 						}, fireballLife, createjs.Ease.linear)
 					.call(function() {
-						stage.removeChild(fireball);
+						effectContainer.removeChild(fireball);
 					});
 			});
 		};
@@ -356,14 +356,14 @@ startNewGame = function() {
 							explosion.x = tile.x + tileWidth/2; explosion.y = tile.y + tileHeight/2;
 							explosion.alpha = 1;
 							explosion.scaleX = 0.5; explosion.scaleY = 0.5;
-							stage.addChild(explosion);
+							effectContainer.addChild(explosion);
 							createjs.Tween.get(explosion)
 								.to({
 									alpha: 0,
 									scaleX: 1.5, scaleY: 1.5
 								}, 500, createjs.Ease.circOut)
 								.call(function() {
-									stage.removeChild(explosion);
+									effectContainer.removeChild(explosion);
 								});
 							break;
 						case 'like':
@@ -763,6 +763,16 @@ startNewGame = function() {
 	};
 	
 	
+	var drawText = function (text, x, y, size, gradient) {
+		console.log([text, y, y, size, gradient]);
+		var t = new createjs.Text(text, size+"px Arial", "#ff7700");
+		t.x = x; t.y = y;
+		t.regX = t.getMeasuredWidth()/2 || 100; t.regY = t.getMeasuredHeight()/2 || 50;
+		overlayContainer.addChild(t);
+		console.log(t);
+	};
+	
+	
 	
 	
 	
@@ -802,6 +812,10 @@ startNewGame = function() {
 	
 	var gameStatus = watchableCounter('playing'); //playing, finished
 	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
+	
+	var tileContainer = new createjs.Container();    stage.addChild(tileContainer);
+	var effectContainer = new createjs.Container();  stage.addChild(effectContainer);
+	var overlayContainer = new createjs.Container(); stage.addChild(overlayContainer);
 	
 	var gamefield = makeField();
 	gamefield.map(function(row, row_count) {
@@ -887,6 +901,7 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
+	window.setTimeout(drawText, 500, 'Super!', Width/2, Height/2, 120);
 	
 	
 	
