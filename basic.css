@@ -1,69 +1,85 @@
-body {
-	background-image: url("images/non-legit background.jpeg");
-	background-position: top center;
-	width: 639px;
-	margin-left: auto;
-	margin-right: auto;
-	color: white;
+@font-face {
+	font-family: "candy";
+	font-style: normal;
+	font-weight: normal;
+	src: url(images/CANDY.woff);
 }
 
 div#game {
-	margin-left: -60px;
-	margin-right: -60px;
-	padding: 50px;
-	padding-bottom: 0px;
-	background-color: #CCC;
-	background: linear-gradient(to top right, #CCC, #999);
-	background: -webkit-linear-gradient(#CCC, #999);
-	border: 10px solid #777;
-	border-radius: 70px;
-	color: black;
+	background-image: url("images/CC_BG.jpg");
+	border: 3px ridge;
+	font-family: "candy";
 	font-size: 2em;
+	padding : 50px;
+	padding-bottom: 0px;
+	width: 639px;
+	overflow: visible;
 }
 
 canvas {
-	background-image: url("images/CC_Gameboard_2.png"), url("images/CC_BG.jpg");
-	box-shadow: 3px 3px 4px #000;
+	background-image: url("images/CC_Gameboard_2.png");
+	box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
 	padding-bottom: 0px;
 	position:relative;
+	border: 1px solid black;
 }
 
 /*Note: There are patterns related to local, global, and function calls in code.*/
 
+p.textDisplay {
+	background-color: #FFCDCE;
+	border-radius: 10px;
+	box-shadow: inset 5px 5px 10px -5px black, inset -5px -5px 10px -5px white;
+	margin: 0px;
+}
+
 p#score {
 	float: left;
-	width: 50%;
-	background-color: #CCC;
-	border: 1px solid black;
+	width:  49%;
+	width: -moz-calc(50% - 4px);
+	width: -webkit-calc(50% - 4px);
+	width: calc(50% - 4px);
 }
 
 p#cash {
-	background-color: #CCC;
-	border: 1px solid  black;
+	margin-left:  51%;
+	margin-left: -moz-calc(50% + 4px);
+	margin-left: -webkit-calc(50% + 4px);
+	margin-left: calc(50% + 4px);
 }
 
+div.textDisplayBorder {
+	background-color: #F260B1;
+	background: -webkit-repeating-linear-gradient(45deg, #FFC2C7 0px, #FFC2C7 25px, #F260B1 25px, #F260B1 60px);
+	background: repeating-linear-gradient(50deg, #F260B1 0px, #FFC2C7 1px, #FFC2C7 25px, #F260B1 26px, #F260B1 60px);
+	border-radius: 10px;
+	margin-bottom: 1em;
+	padding: 8px;
+	overflow: visible;
+};
+
 div#popover {
-	text-align: center;
-	font-size: 20px;
-	background: white;
+	background:  white;
 	background: rgba(255,255,255,0.8);
-	position: absolute;
-	top: 250px;
+	font-size: 20px;
 	margin-left: 40px;
 	margin-right: auto;
-	width: 400px;
 	outline: 3px solid black;
+	position: absolute;
+	text-align: center;
+	top: 250px;
+	width: 400px;
 }
 
 div#music {
-	position: fixed;
-	right: 5%;
-	bottom: 0%;
 	background: #3ba1c2;
-	padding: 6px;
-	padding-bottom: 0px;
-	border: 1px solid black;
 	border-top-left-radius: 10px;
 	border-top-right-radius: 10px;
+	border: 1px solid black;
+	bottom: 0%;
 	margin-bottom: -6px;
+	padding-bottom: 0px;
+	padding: 6px;
+	position: fixed;
+	right: 5%;
 }

@@ -16,6 +16,6 @@ var linkHTMLDisplay = function(){
 		console.error('bad mode value');
 	}
 	mainWindow.watchScoreWith(function(value) {
-		scoreDisplay.textContent = " Score: " + value + " cal.";
+		scoreDisplay.textContent = " Score: " + value;
 	});
 };

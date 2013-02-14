@@ -519,7 +519,7 @@ startNewGame = function() {
 			scoreDelta += lastY;
 			
 			_.range(0, lastY).map(function(y) {
-				var tile = getNewTile(x, y); //Specify false, random number to allow matches to be made by sheer chance, I think.
+				var tile = getNewTile(x, y, undefined, _.random(numTileTypes)); //Specify false, random number to allow matches to be made by sheer chance, I think.
 				gamefield[x][y] = tile;
 				var targetY = tile.y;
 				tile.y -= lastY*tileHeight;
