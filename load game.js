@@ -17,7 +17,8 @@ var loadGame = function() {
 		var jsAr = [
 			"../tween.js/lib/tweenjs-0.3.0.min.js",
 			"../sound.js/lib/soundjs-0.3.0.min.js",
-			"../easel.js/src/easeljs/filters/ColorFilter.js" ];
+			//"../easel.js/src/easeljs/filters/ColorFilter.js"
+			];
 		
 		var onAllLoaded = function() {
 			if(loadOtherScriptsCount === jsAr.length) {
@@ -40,7 +41,7 @@ var loadGame = function() {
 					loadOtherScriptsCount += 1;
 					onAllLoaded();
 				},
-				error: function() {console.error('An error occured loading a game script via AJAX.');}
+				error: function() {console.error('An error occured loading a game script.');}
 				
 			});
 		});

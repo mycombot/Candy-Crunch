@@ -763,13 +763,47 @@ startNewGame = function() {
 	};
 	
 	
-	var drawText = function (text, x, y, size, gradient) {
-		console.log([text, y, y, size, gradient]);
-		var t = new createjs.Text(text, size+"px Arial", "#ff7700");
-		t.x = x; t.y = y;
-		t.regX = t.getMeasuredWidth()/2 || 100; t.regY = t.getMeasuredHeight()/2 || 50;
-		overlayContainer.addChild(t);
-		console.log(t);
+	var drawText = function (displayText, x, y, size, gradientColours) {
+		var vPad = size/4;
+		var tailDepth = size/4;
+		var outlineSize = size/(100/7.5);
+		console.log([displayText, x, y, size, gradient]);
+		
+		var position = $(canvas).offset();
+		var jCanvas = $("<canvas>").appendTo("body");
+		var gfx = jCanvas[0].getContext('2d');
+		gfx.font = size+'pt candy';
+		var textWidth = gfx.measureText(displayText).width + size/4 + outlineSize*2;
+		var textHeight = size+vPad*2+tailDepth;
+		//position.left -= textWidth/2 - x;
+		//position.top -= textHeight/2 - y;
+		jCanvas
+			.attr({'width':textWidth,'height':textHeight})
+			.css({
+				"position": "absolute",
+				//"background": "yellow",
+				"transform": "translate("+(-textWidth/2+x)+"px, "+(-textHeight/2+y)+"px)"
+			})
+			.css(position);
+		gfx.font = size+'pt candy';
+		gfx.lineCap = 'round';
+		gfx.lineWidth = outlineSize*2+2;
+		gfx.strokeStyle = '#000000';
+		gfx.strokeText(displayText,  outlineSize, size+vPad);
+		gfx.lineWidth = outlineSize*2;
+		gfx.strokeStyle = '#391A00';
+		gfx.strokeText(displayText,  outlineSize, size+vPad);
+		var gradient = gfx.createLinearGradient(0, vPad, 0, vPad+size+tailDepth);
+		gradient.addColorStop(0, gradientColours[0]);
+		gradient.addColorStop(1, gradientColours[1]);
+		gfx.fillStyle=gradient;
+		gfx.fillText(displayText, outlineSize, size+vPad);
+		gfx.lineWidth = outlineSize/2;
+		gfx.strokeStyle = 'rgba(255,255,255,0.1)';
+		gfx.strokeText(displayText,  outlineSize, size+vPad);
+		gfx.lineWidth = outlineSize/3;
+		gfx.strokeText(displayText,  outlineSize, size+vPad);
+		console.log(jCanvas);
 	};
 	
 	
@@ -901,7 +935,7 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	window.setTimeout(drawText, 500, 'Super!', Width/2, Height/2, 120);
+	window.setTimeout(drawText, 500, 'Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
 	
 	
 	

@@ -16,7 +16,7 @@ div#game {
 	overflow: visible;
 }
 
-canvas {
+canvas#main {
 	background-image: url("images/CC_Gameboard_2.png");
 	box-shadow: 3px 3px 4px rgba(0,0,0,0.2);
 	padding-bottom: 0px;
