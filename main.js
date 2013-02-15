@@ -1,4 +1,4 @@
-/*global createjs console _ $ iTiles iMode iScore iMoves iTime*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
+/*global createjs console _ $ averageRGB iTiles iMode iScore iMoves iTime*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
 //Chromium: Run with --allow-file-access-from-files. It'll be fine in production, once we get it on a remote server.
 
 /* === PROGRAM OVERVIEW ===
@@ -93,7 +93,7 @@ startNewGame = function() {
 			};
 			
 		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin. type is the index of the bitmap. isBonus can be undefined or the type of bonus.
-			if(!_.contains([undefined, "hor", "ver", "point", "like"], isBonus)) {
+			if(!_.contains([undefined, "hor", "ver", "point", "like"], isBonus) && undefined !== isBonus) { //_.contains doesn't work in ie8 with undefined.
 				console.warn("isBonus is '" + isBonus + "', shouldn't be.");
 				throw "bad isBonus value";
 			}
@@ -112,8 +112,8 @@ startNewGame = function() {
 			
 			tileToReturn.index = tileIndex; //Because new tiles are cloned from the prototypes, we can't set the index in the prototype.
 			
-			tileToReturn.xFromTile = function(x) {return _.if(typeof x === 'number', x, tileToReturn.tileX) * tileWidth;};
-			tileToReturn.yFromTile = function(y) {return _.if(typeof y === 'number', y, tileToReturn.tileY) * tileHeight;};
+			tileToReturn.xFromTile = function(x) {return (typeof x === 'number' ? x : tileToReturn.tileX) * tileWidth;};
+			tileToReturn.yFromTile = function(y) {return (typeof y === 'number' ? y : tileToReturn.tileY) * tileHeight;};
 			
 			tileToReturn.tileX = x;
 			tileToReturn.tileY = y;
@@ -159,11 +159,11 @@ startNewGame = function() {
 			}
 		};
 		return function(tile, direction) {
-			_.if(!_.contains(['h', 'v'], direction),
+			(!_.contains(['h', 'v'], direction) ?
 				function() {
 					console.warn('Bad direction: \''+direction+'\' (Should be either \'h\' or \'v\'.)');
 					throw('bad direction');
-					},
+					} :
 				function() {} )();
 			var vecs = direction === 'h' ? [[-1,0],[1,0]] : [[0,-1],[0,1]];
 			return [].concat(lineInDir(tile, vecs[0]), lineInDir(tile, vecs[1]));
@@ -758,7 +758,7 @@ startNewGame = function() {
 		createjs.Ticker.setPaused(true);
 		gameStatus.set('finished');
 		window.setTimeout(function(){
-			window.alert("Game Over!\nYour score is " + score.value() + " calories crunched.");
+			window.alert("Game Over.\nYour score is " + score.value() + " points!");
 		}, 100);
 	};
 	
@@ -767,43 +767,64 @@ startNewGame = function() {
 		var vPad = size/4;
 		var tailDepth = size/4;
 		var outlineSize = size/(100/7.5);
-		console.log([displayText, x, y, size, gradient]);
-		
 		var position = $(canvas).offset();
-		var jCanvas = $("<canvas>").appendTo("body");
-		var gfx = jCanvas[0].getContext('2d');
-		gfx.font = size+'pt candy';
-		var textWidth = gfx.measureText(displayText).width + size/4 + outlineSize*2;
-		var textHeight = size+vPad*2+tailDepth;
-		//position.left -= textWidth/2 - x;
-		//position.top -= textHeight/2 - y;
-		jCanvas
-			.attr({'width':textWidth,'height':textHeight})
-			.css({
-				"position": "absolute",
-				//"background": "yellow",
-				"transform": "translate("+(-textWidth/2+x)+"px, "+(-textHeight/2+y)+"px)"
-			})
-			.css(position);
-		gfx.font = size+'pt candy';
-		gfx.lineCap = 'round';
-		gfx.lineWidth = outlineSize*2+2;
-		gfx.strokeStyle = '#000000';
-		gfx.strokeText(displayText,  outlineSize, size+vPad);
-		gfx.lineWidth = outlineSize*2;
-		gfx.strokeStyle = '#391A00';
-		gfx.strokeText(displayText,  outlineSize, size+vPad);
-		var gradient = gfx.createLinearGradient(0, vPad, 0, vPad+size+tailDepth);
-		gradient.addColorStop(0, gradientColours[0]);
-		gradient.addColorStop(1, gradientColours[1]);
-		gfx.fillStyle=gradient;
-		gfx.fillText(displayText, outlineSize, size+vPad);
-		gfx.lineWidth = outlineSize/2;
-		gfx.strokeStyle = 'rgba(255,255,255,0.1)';
-		gfx.strokeText(displayText,  outlineSize, size+vPad);
-		gfx.lineWidth = outlineSize/3;
-		gfx.strokeText(displayText,  outlineSize, size+vPad);
-		console.log(jCanvas);
+		var jCanvas = $("<canvas>");
+		
+		if(jCanvas[0].getContext) {
+			var gfx = jCanvas[0].getContext('2d');
+			gfx.font = size+'pt candy';
+			var textWidth = gfx.measureText(displayText).width + size/4 + outlineSize*2;
+			var textHeight = size+vPad*2+tailDepth;
+			//position.left -= textWidth/2 - x;
+			//position.top -= textHeight/2 - y;
+			jCanvas
+				.attr({'width':textWidth,'height':textHeight})
+				.css({
+					"position": "absolute",
+					//"background": "yellow",
+					"transform": "translate("+(-textWidth/2+x)+"px, "+(-textHeight/2+y)+"px)"
+				})
+				.css(position);
+				
+			gfx.font = size+'pt candy';
+			gfx.lineCap = 'round';
+			gfx.lineWidth = outlineSize*2+2; //Thin black outline. Makes it pop.
+			gfx.strokeStyle = '#000000';
+			gfx.strokeText(displayText,  outlineSize, size+vPad);
+			gfx.lineWidth = outlineSize*2; //Brown outline.
+			gfx.strokeStyle = '#391A00';
+			gfx.strokeText(displayText,  outlineSize, size+vPad);
+			var gradient = gfx.createLinearGradient(0, vPad, 0, vPad+size+tailDepth); //Fill the interior of the text with a gradient.
+			gradient.addColorStop(0, gradientColours[0]);
+			gradient.addColorStop(1, gradientColours[1]);
+			gfx.fillStyle=gradient;
+			gfx.fillText(displayText, outlineSize, size+vPad);
+			gfx.lineWidth = outlineSize/2; //Draw an outline of white to make it 'glow'.
+			gfx.strokeStyle = 'rgba(255,255,255,0.1)';
+			gfx.strokeText(displayText,  outlineSize, size+vPad);
+			gfx.lineWidth = outlineSize/3; //Glows should be brighter near the center, so draw a thinner outline of white.
+			gfx.strokeText(displayText,  outlineSize, size+vPad);
+			
+			jCanvas.appendTo("body");
+			return jCanvas;
+		} else {
+			var averageColour = averageRGB(gradientColours[0],gradientColours[1]);
+			var jPar = $("<p>"); //For IE8.
+			jPar.text(displayText)
+				.css({
+					"font-size": size,
+					"position": "absolute",
+					"color": "#"+averageColour,
+					/*"background": "yellow",*/
+					"font-family": "comic sans ms",
+					"filter": "glow(color=391A00,strength=10)"
+				})
+				.appendTo("body")
+				.offset({
+					left: position.left + x - jPar.width()/2,
+					top: position.top + y - jPar.height()/2 });
+			console.log(jPar.width());
+		}
 	};
 	
 	
@@ -816,7 +837,9 @@ startNewGame = function() {
 	var stage = new createjs.Stage(canvas);
 	stage.snapToPixel = true;
 	stage.enableMouseOver();
-	createjs.Touch.enable(stage, true); //'True' here disables multi-touch. Good.
+	if(createjs.Touch) {
+		createjs.Touch.enable(stage, true); //'True' here disables multi-touch. Good.
+	}
 	createjs.Ticker.addListener(stage);
 	
 	var spriteSheetA = new createjs.Bitmap("images/CC_Sprite_Sheet.png");
@@ -935,7 +958,7 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	window.setTimeout(drawText, 500, 'Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
+	drawText('Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
 	
 	
 	
@@ -943,6 +966,7 @@ startNewGame = function() {
 // →→→ EVENTS ←←←
 	
 	stage.onMouseDown = function(evt) {
+		console.log('mouse down event received ', evt);
 		if(isRightButton(evt.nativeEvent.which)) { //1 is the left mouse button. We won't use right because I think that doesn't play nicely with EaselFL.
 			if(canInput()) {
 				var overTileX = pixToTile(evt.stageX, tileWidth);
@@ -963,11 +987,11 @@ startNewGame = function() {
 			return swallowMouseEvent(evt);
 		}
 		
-		var overTileX = pixToTile(evt.stageX, tileWidth);
-		var overTileY = pixToTile(evt.stageY, tileHeight);
-		gamefield[overTileX][overTileY].remove();
-		gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, undefined, 1);
-		
+		// Debug code. If we middle-click, it sets the tile to an orange candy.
+		// var overTileX = pixToTile(evt.stageX, tileWidth);
+		// var overTileY = pixToTile(evt.stageY, tileHeight);
+		// gamefield[overTileX][overTileY].remove();
+		// gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, undefined, 1);
 	};
 	
 	

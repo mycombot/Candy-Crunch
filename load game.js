@@ -1,5 +1,18 @@
 /*global console createjs linkHTMLDisplay $ _ jQuery startNewGame*/
 
+//jQuery ajax shim for ie8.
+jQuery.ajaxSetup({
+            xhr: function() {
+                    //return new window.XMLHttpRequest();
+                    try{
+                        if(window.ActiveXObject)
+                            return new window.ActiveXObject("Microsoft.XMLHTTP");
+                    } catch(e) { }
+
+                    return new window.XMLHttpRequest();
+                }
+        });
+
 var mainWindow = null;
 var loadGame = function() {
 	"use strict";
@@ -16,9 +29,7 @@ var loadGame = function() {
 		var loadOtherScriptsCount = 0;
 		var jsAr = [
 			"../tween.js/lib/tweenjs-0.3.0.min.js",
-			"../sound.js/lib/soundjs-0.3.0.min.js",
-			//"../easel.js/src/easeljs/filters/ColorFilter.js"
-			];
+			"../sound.js/lib/soundjs-0.3.0.min.js"];
 		
 		var onAllLoaded = function() {
 			if(loadOtherScriptsCount === jsAr.length) {
