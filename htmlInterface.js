@@ -4,6 +4,7 @@ var linkHTMLDisplay = function(){
 	scoreDisplay = $("#score")[0];
 	if(mainWindow.mode() === 'turns') {
 		mainWindow.watchRemainingTilesWith(function(value) {
+			console.log('turns' + value);
 			cashDisplay.textContent = " Left: " + value + (value !== 1 ? " turns" : " turn");
 		});
 	} else if(mainWindow.mode() === 'time') {

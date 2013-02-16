@@ -171,31 +171,6 @@ startNewGame = function() {
 	}();
 	
 	
-	var selectObject = function(tile) {
-		if(selectedObject !== tile) {
-			selectedObject = tile;
-			if(selectionIndicator) {
-				if(tile) {
-					selectionIndicator.x = tile.xFromTile();
-					selectionIndicator.y = tile.yFromTile();
-				} else {
-					effectContainer.removeChild(selectionIndicator);
-					selectionIndicator = null;
-				}
-			} else {
-				if(tile){
-					selectionIndicator = spriteSheetA.clone();
-					selectionIndicator.sourceRect = new createjs.Rectangle(0, 145, 71, 71),
-					selectionIndicator.regY = 4;
-					effectContainer.addChild(selectionIndicator);
-					selectionIndicator.x = tile.xFromTile();
-					selectionIndicator.y = tile.yFromTile();
-				}
-			}
-		}
-	};
-	
-	
 	var switchTiles = function(a,b) {
 		noInput = true;
 		noSwitch = true;
@@ -592,7 +567,7 @@ startNewGame = function() {
 		return a && b &&
 		1 === _.reduce([
 				Math.abs(a.tileX - b.tileX), //We sum both x and y distance to make sure we didn't go kitty-corner (or worse).
-				Math.abs(a.tileY - b.tileY),
+				Math.abs(a.tileY - b.tileY)
 			], function(a,b) {return a+b;}, 0);
 	};
 
@@ -603,11 +578,6 @@ startNewGame = function() {
 		evt.nativeEvent.stopPropagation();
 		//evt.nativeEvent.stopImmediatePropagation();
 		return false;
-	};
-	
-	
-	var isRightButton = function(which) { //Takes a mouse button, returns true if it's the one we accept input from. (0 if on tablet, 1 if on computer) This assumes a touch-enabled device won't accept mouse input, which might be a dangerous assumption.
-		return createjs.Touch.isSupported() ? which === 0 : which === 1;
 	};
 	
 	
@@ -958,16 +928,50 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	drawText('Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
+	//drawText('Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
 	
 	
 	
 	
 // →→→ EVENTS ←←←
+	var isRightButton = function(which) { //Takes a mouse button, returns true if it's the one we accept input from. (0 if on tablet, 1 if on computer) This assumes a touch-enabled device won't accept mouse input, which might be a dangerous assumption.
+		return createjs.Touch.isSupported() ? which === 0 : which === 1;
+	};
+	
+	
+	var selectObject = function(tile) {
+		if(selectedObject !== tile) {
+			selectedObject = tile;
+			if(selectionIndicator) {
+				if(tile) {
+					selectionIndicator.x = tile.xFromTile();
+					selectionIndicator.y = tile.yFromTile();
+				} else {
+					effectContainer.removeChild(selectionIndicator);
+					selectionIndicator = null;
+				}
+			} else {
+				if(tile){
+					selectionIndicator = spriteSheetA.clone();
+					selectionIndicator.sourceRect = new createjs.Rectangle(0, 145, 71, 71),
+					selectionIndicator.regY = 4;
+					effectContainer.addChild(selectionIndicator);
+					selectionIndicator.x = tile.xFromTile();
+					selectionIndicator.y = tile.yFromTile();
+				}
+			}
+		}
+	};
+	
+
+	stage.onClick = function(evt) {
+		if(evt.nativeEvent===null) { //No native event? Must be in flash mode.
+			stage.onMouseDown(evt);
+		}
+	};
 	
 	stage.onMouseDown = function(evt) {
-		console.log('mouse down event received ', evt);
-		if(isRightButton(evt.nativeEvent.which)) { //1 is the left mouse button. We won't use right because I think that doesn't play nicely with EaselFL.
+		if(evt.nativeEvent===null || isRightButton(evt.nativeEvent.which)) { //1 is the left mouse button. We won't use right because I think that doesn't play nicely with EaselFL.
 			if(canInput()) {
 				var overTileX = pixToTile(evt.stageX, tileWidth);
 				var overTileY = pixToTile(evt.stageY, tileHeight);
@@ -996,7 +1000,7 @@ startNewGame = function() {
 	
 	
 	stage.onMouseMove = function(evt) {
-		if(isRightButton(evt.nativeEvent.which)) {
+		if(evt.nativeEvent===null || isRightButton(evt.nativeEvent.which)) {
 			if(canInput()) {
 				var overTileX = pixToTile(evt.stageX, tileWidth);
 				var overTileY = pixToTile(evt.stageY, tileHeight);
