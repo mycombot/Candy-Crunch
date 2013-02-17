@@ -583,6 +583,27 @@ startNewGame = function() {
 	
 	var checkForPotentialMatches = function() {
 		var getPotentialMatches = function() {
+			//First, look for adjacent bonus tiles. (We want to hint these preferentially, since it'll already be rare that the user will put two side-by-side.)
+			var bonusTiles = false;
+			var potBonusTiles = _.flatten(
+				gamefield.map(function(column) {
+					return column.filter(function(tile) {
+						return tile.isBonus;
+					});
+				}),
+				true);
+			_.find(potBonusTiles, function(tile, index) {
+				console.log(potBonusTiles.length - index < 2, ' Did not recurs if true.');
+				if(potBonusTiles.length - index < 2) return false;
+				return _.find(potBonusTiles.slice(index+1, potBonusTiles.length), function(matchTile) {
+					var isMatch = tilesAreAdjacent(tile, matchTile);
+					if(isMatch) bonusTiles = [tile, matchTile];
+					return isMatch;
+				});
+			});
+			if(bonusTiles) return bonusTiles;
+			
+			//If we don't have any bonus tiles side-by-side, then we'll look for normal tiles in a pattern that could be made into a match of three.
 			var order = _(_.range(numTileTypes+1)).shuffle();
 			var foundObjects = false;
 			_.find(order, function(targetTileType) {
@@ -601,16 +622,13 @@ startNewGame = function() {
 											return column
 											.slice(yOffset, yOffset+mmHeight)
 											.filter(function(tile, rowCount) {
-												return matchMask[colCount][rowCount];
+												return matchMask[colCount][rowCount] === 1;// || matchMask[colCount][rowCount] === 2 && tile.isBonus;
 											});
 										}),
 									true);
 								var clusterPassed =
 								(undefined === _.find(_.pluck(cluster, 'index'), function(index) {
 									return index != targetTileType;
-								})) &&
-								(undefined === _.find(_.pluck(cluster, 'rotation'), function(rotation) { //We can't bounce the rotated tiles. This may cause a mis-called game over, but the chances are slim -- and we need to see if we even ever want to rotate pieces. (The solution is to manually rotate the graphic, I think. Rotation is bad in easeljs for our purposes.)
-									return rotation;
 								}));
 								if(clusterPassed) foundObjects = cluster;
 								return foundObjects;
@@ -875,7 +893,7 @@ startNewGame = function() {
 			});
 		});
 		return matches;
-	}([ [
+	}([ [ //1 = all tiles, 2 = bonus tiles
 			[1,1,0,1]
 		], [
 			[1,1,0],
@@ -992,10 +1010,10 @@ startNewGame = function() {
 		}
 		
 		// Debug code. If we middle-click, it sets the tile to an orange candy.
-		// var overTileX = pixToTile(evt.stageX, tileWidth);
-		// var overTileY = pixToTile(evt.stageY, tileHeight);
-		// gamefield[overTileX][overTileY].remove();
-		// gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, undefined, 1);
+		var overTileX = pixToTile(evt.stageX, tileWidth);
+		var overTileY = pixToTile(evt.stageY, tileHeight);
+		gamefield[overTileX][overTileY].remove();
+		gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, "hor", 1);
 	};
 	
 	
