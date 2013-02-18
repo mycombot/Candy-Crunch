@@ -75,7 +75,7 @@ div#popover {
 }
 
 div#music {
-	background: #3ba1c2;
+	background: #3ba1c2; /*A pretty blue.*/
 	border-top-left-radius: 10px;
 	border-top-right-radius: 10px;
 	border: 1px solid black;
@@ -85,4 +85,8 @@ div#music {
 	padding: 6px;
 	position: fixed;
 	right: 5%;
+}
+
+.gameTextOverlay {
+	pointer-events: none; /*Sometimes, CSS is amazingly wonderful.*/
 }

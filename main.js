@@ -123,6 +123,7 @@ startNewGame = function() {
 			tileToReturn.remove = function() { //Note: Only call if you've actually added this tile to the stage.
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
 				if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
+				drawTileScore(Math.floor(40 * (matchesMadeThisMove/2+1)), tileToReturn.x+tileWidth/2, tileToReturn.y+tileHeight/2, 30, ["#F8DB63", "#CF8A09"]);
 				tileContainer.removeChild(tileToReturn);
 			};
 			
@@ -400,7 +401,16 @@ startNewGame = function() {
 			if(!matches.length) {
 				noInput = false;
 				noSwitch = false;
-				scoreMultiplier = 1;
+				if(matchesMadeThisMove > 4) {
+					drawBigOverlay('Delicious!', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+				} else if(matchesMadeThisMove > 3) {
+					drawBigOverlay('Divine!',    Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+				} else if(matchesMadeThisMove > 2) {
+					drawBigOverlay('Sweet!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+				} else if(matchesMadeThisMove > 1) {
+					drawBigOverlay('Tasty!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+				}
+				matchesMadeThisMove = 0;
 				if(remainingTiles.value() <= 0) {
 					runGameOver();
 				} else {
@@ -411,8 +421,6 @@ startNewGame = function() {
 			
 			stopHighlightingMatches();
 			stopFutureMatchHighlight();
-			
-			scoreMultiplier *= 2;
 			
 			var newBonuses = [];
 			var tilesToRemove = [];
@@ -460,7 +468,9 @@ startNewGame = function() {
 				newBonuses,
 				function () {
 					fallTiles(function() {
-						removeMatchesInternal(searchForMatches());
+						var tilesToRemove = searchForMatches();
+						matchesMadeThisMove += tilesToRemove.length;
+						removeMatchesInternal(tilesToRemove);
 					});
 				} );
 			
@@ -512,7 +522,7 @@ startNewGame = function() {
 			});
 			
 			var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
-			scoreDelta += lastY * 40 * scoreMultiplier;
+			scoreDelta += Math.floor(lastY * 40 * (matchesMadeThisMove/2+1));
 			
 			_.range(0, lastY).map(function(y) {
 				var tile = getNewTile(x, y, undefined, _.random(numTileTypes)); //Specify false, random number to allow matches to be made by sheer chance, I think.
@@ -772,7 +782,7 @@ startNewGame = function() {
 	var runGameOver = _.once(runGameOvers);
 	
 	
-	var drawText = function (displayText, x, y, size, gradientColours) {
+	var drawText = function (displayText, x, y, size, gradientColours) { //Returns a jQuery object for the DOM object created.
 		var vPad = size/4;
 		var tailDepth = size/4;
 		var outlineSize = size/(100/7.5);
@@ -784,10 +794,9 @@ startNewGame = function() {
 			gfx.font = size+'pt candy';
 			var textWidth = gfx.measureText(displayText).width + size/4 + outlineSize*2;
 			var textHeight = size+vPad*2+tailDepth;
-			//position.left -= textWidth/2 - x;
-			//position.top -= textHeight/2 - y;
 			jCanvas
 				.attr({'width':textWidth,'height':textHeight})
+				.addClass('gameTextOverlay')
 				.css({
 					"position": "absolute",
 					//"background": "yellow",
@@ -820,21 +829,55 @@ startNewGame = function() {
 			var averageColour = averageRGB(gradientColours[0],gradientColours[1]);
 			var jPar = $("<p>"); //For IE8.
 			jPar.text(displayText)
+				.addClass('gameTextOverlay')
 				.css({
 					"font-size": size,
 					"position": "absolute",
 					"color": "#"+averageColour,
 					/*"background": "yellow",*/
 					"font-family": "comic sans ms",
-					"filter": "glow(color=391A00,strength=10)"
+					"filter": "glow(color=391A00,strength="+size/10+")"
 				})
 				.appendTo("body")
 				.offset({
 					left: position.left + x - jPar.width()/2,
 					top: position.top + y - jPar.height()/2 });
-			console.log(jPar.width());
+			return jPar;
 		}
 	};
+	
+	
+	var drawTileScore = function() {
+		var text = drawText.apply(null, arguments);
+		text
+			.hide()
+			.fadeIn()
+			.delay(50)
+			.fadeOut()
+			.queue(function() {
+				text.remove();
+			});
+		if(text.css('transform')) { //Graceful degradation! Might be undefined in older browsers.
+			var matrixToArray = function(mString) {
+				var matrix = function() {return arguments;};
+				return eval(mString);
+			};
+			var textY = matrixToArray(text.css('transform'))[5];
+		}
+	};
+	
+	var drawBigOverlay = function() {
+		var text = drawText.apply(null, arguments);
+		text
+			.hide()
+			.fadeIn()
+			.delay(750)
+			.fadeOut()
+			.queue(function() {
+				text.remove();
+			});
+	};
+	
 	
 	
 	
@@ -870,7 +913,7 @@ startNewGame = function() {
 	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
 	var mode = typeof iMode !== 'undefined' && iMode || 'turns'; //turns, time
 	
-	var scoreMultiplier = 1; //Reset to 1 elsewhere too.
+	var matchesMadeThisMove = 0; //Reset to 1 elsewhere too.
 	var score = watchableCounter(
 		typeof iScore !== 'undefined' && iScore || 0);
 	var remainingTiles = watchableCounter(
@@ -982,7 +1025,7 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	//drawText('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
+	//drawText('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
 	
 	
 	
@@ -1050,7 +1093,6 @@ startNewGame = function() {
 		// var overTileY = pixToTile(evt.stageY, tileHeight);
 		// gamefield[overTileX][overTileY].remove();
 		// gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, "point", 1);
-		console.log(scoreMultiplier);
 	};
 	
 	
