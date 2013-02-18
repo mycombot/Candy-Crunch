@@ -1,4 +1,4 @@
-/*global createjs console _ $ averageRGB iTiles iMode iScore iMoves iTime*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
+/*global createjs console _ $ averageRGB iTiles iMode iScore iMoves iTime iJelly*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
 //Chromium: Run with --allow-file-access-from-files. It'll be fine in production, once we get it on a remote server.
 
 /* === PROGRAM OVERVIEW ===
@@ -51,45 +51,52 @@ startNewGame = function() {
 		});
 	};
 	
+	var makeTileLocatable = function(tileToReturn, x, y) {
+			tileToReturn.tileX = x;
+			tileToReturn.tileY = y;
+			tileToReturn.xFromTile = function(x) {return (typeof x === 'number' ? x : tileToReturn.tileX) * tileWidth;};
+			tileToReturn.yFromTile = function(y) {return (typeof y === 'number' ? y : tileToReturn.tileY) * tileHeight;};
+			tileToReturn.x = tileToReturn.xFromTile();
+			tileToReturn.y = tileToReturn.yFromTile();
+		};
 	
 	var getNewTile = function(){
 		var tileSourceRects = { //sourceRect is not cloned when we clone the bitmap. We must define sourceRects instead of bitmaps.
 			normal: [
-				new createjs.Rectangle(360, 5,   71, 63),
-				new createjs.Rectangle(432, 5,   71, 63),
-				new createjs.Rectangle(360, 75,  71, 63),
-				new createjs.Rectangle(432, 75,  71, 63),
-				new createjs.Rectangle(360, 147, 71, 63),
-				new createjs.Rectangle(432, 147, 71, 63) ],
+				new createjs.Rectangle(  0,  5, 71, 63),
+				new createjs.Rectangle( 72,  5, 71, 63),
+				new createjs.Rectangle(144,  5, 71, 63),
+				new createjs.Rectangle(216,  5, 71, 63),
+				new createjs.Rectangle(288,  5, 71, 63),
+				new createjs.Rectangle(360,  5, 71, 63) ],
+			ver: [
+				new createjs.Rectangle(432,  5, 71, 63),
+				new createjs.Rectangle(504,  5, 71, 63),
+				new createjs.Rectangle(576,  5, 71, 63),
+				new createjs.Rectangle(648,  5, 71, 63),
+				new createjs.Rectangle(720,  5, 71, 63),
+				new createjs.Rectangle(792,  5, 71, 63) ],
 			hor: [
-				new createjs.Rectangle(144, 220, 71, 63),
-				new createjs.Rectangle(288, 220, 71, 63),
-				new createjs.Rectangle(71,  147, 71, 63),
-				new createjs.Rectangle(215, 147, 71, 63),
-				new createjs.Rectangle(215, 220, 71, 63),
-				new createjs.Rectangle(144, 147, 71, 63) ],
-			ver: [ //Twist these 90°.
-				new createjs.Rectangle(144, 220, 71, 63),
-				new createjs.Rectangle(288, 220, 71, 63),
-				new createjs.Rectangle(71,  147, 71, 63),
-				new createjs.Rectangle(215, 147, 71, 63),
-				new createjs.Rectangle(215, 220, 71, 63),
-				new createjs.Rectangle(144, 147, 71, 63) ],
+				new createjs.Rectangle(864,  5, 71, 63),
+				new createjs.Rectangle(936,  5, 71, 63),
+				new createjs.Rectangle(  0, 76, 71, 63),
+				new createjs.Rectangle( 72, 76, 71, 63),
+				new createjs.Rectangle(144, 76, 71, 63),
+				new createjs.Rectangle(216, 76, 71, 63) ],
 			point: [
-				new createjs.Rectangle(360, 220, 71, 63),
-				new createjs.Rectangle(432, 220, 71, 63),
-				new createjs.Rectangle(360, 290, 71, 63),
-				new createjs.Rectangle(432, 290, 71, 63),
-				new createjs.Rectangle(360, 362, 71, 63),
-				new createjs.Rectangle(432, 362, 71, 63) ],
+				new createjs.Rectangle(288, 76, 71, 63),
+				new createjs.Rectangle(360, 76, 71, 63),
+				new createjs.Rectangle(432, 76, 71, 63),
+				new createjs.Rectangle(504, 76, 71, 63),
+				new createjs.Rectangle(576, 76, 71, 63),
+				new createjs.Rectangle(648, 76, 71, 63) ],
 			like: [ //Offset this to 147. (+3)
-				new createjs.Rectangle(288, 145, 71, 69),
-				new createjs.Rectangle(288, 145, 71, 69),
-				new createjs.Rectangle(288, 145, 71, 69),
-				new createjs.Rectangle(288, 145, 71, 69),
-				new createjs.Rectangle(288, 145, 71, 69),
-				new createjs.Rectangle(288, 145, 71, 69) ],
-			
+				new createjs.Rectangle(721, 73, 71, 69),
+				new createjs.Rectangle(721, 73, 71, 69),
+				new createjs.Rectangle(721, 73, 71, 69),
+				new createjs.Rectangle(721, 73, 71, 69),
+				new createjs.Rectangle(721, 73, 71, 69),
+				new createjs.Rectangle(721, 73, 71, 69) ]
 			};
 			
 		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin. type is the index of the bitmap. isBonus can be undefined or the type of bonus.
@@ -99,32 +106,23 @@ startNewGame = function() {
 			}
 			
 			var tileIndex = type===undefined ? _.random(numTileTypes) : type;
-			var tileToReturn = spriteSheetA.clone();
+			var tileToReturn = spriteSheetB.clone();
 			tileToReturn.sourceRect = !isBonus ? tileSourceRects.normal[tileIndex].clone() : tileSourceRects[isBonus][tileIndex].clone();
 			
-			if(isBonus === "ver") {
-				tileToReturn.rotation = 90;
-				tileToReturn.regY = tileWidth-4;
-				tileToReturn.regX = 4;
-			} else if(isBonus === "like") {
+			if(isBonus === "like") {
 				tileToReturn.regY = 3;
 			}
 			
 			tileToReturn.index = tileIndex; //Because new tiles are cloned from the prototypes, we can't set the index in the prototype.
 			
-			tileToReturn.xFromTile = function(x) {return (typeof x === 'number' ? x : tileToReturn.tileX) * tileWidth;};
-			tileToReturn.yFromTile = function(y) {return (typeof y === 'number' ? y : tileToReturn.tileY) * tileHeight;};
-			
-			tileToReturn.tileX = x;
-			tileToReturn.tileY = y;
-			tileToReturn.x = tileToReturn.xFromTile();
-			tileToReturn.y = tileToReturn.yFromTile();
+			makeTileLocatable(tileToReturn, x, y);
 			
 			tileToReturn.isBonus = !!isBonus;
 			tileToReturn.bonuses = [];
 			
 			tileToReturn.remove = function() { //Note: Only call if you've actually added this tile to the stage.
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
+				if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
 				tileContainer.removeChild(tileToReturn);
 			};
 			
@@ -137,6 +135,26 @@ startNewGame = function() {
 			}
 		};
 	}();
+	
+	
+	var getNewJellyTile = function(x,y) {
+		var tile = spriteSheetB.clone();
+		tile.sourceRect = new createjs.Rectangle(317, 687, 71, 63);
+		makeTileLocatable(tile, x,y);
+		tile.remove = function() {
+			jellyfield[x][y] = null;
+			jellyContainer.removeChild(tile);
+			if(! _.find(jellyfield, function(column) {
+				return _.find(column, function(tile) {
+					return tile;
+				});
+			})) {
+				runGameOver();
+			}
+		};
+		jellyContainer.addChild(tile);
+		return tile;
+	};
 	
 	
 	var pixToTile = function(dist, tsize) {
@@ -382,6 +400,7 @@ startNewGame = function() {
 			if(!matches.length) {
 				noInput = false;
 				noSwitch = false;
+				scoreMultiplier = 1;
 				if(remainingTiles.value() <= 0) {
 					runGameOver();
 				} else {
@@ -392,6 +411,8 @@ startNewGame = function() {
 			
 			stopHighlightingMatches();
 			stopFutureMatchHighlight();
+			
+			scoreMultiplier *= 2;
 			
 			var newBonuses = [];
 			var tilesToRemove = [];
@@ -491,7 +512,7 @@ startNewGame = function() {
 			});
 			
 			var lastY = gamefield[x].lastIndexOf(null)+1; //Tiles added to replace tiles matched.
-			scoreDelta += lastY;
+			scoreDelta += lastY * 40 * scoreMultiplier;
 			
 			_.range(0, lastY).map(function(y) {
 				var tile = getNewTile(x, y, undefined, _.random(numTileTypes)); //Specify false, random number to allow matches to be made by sheer chance, I think.
@@ -514,7 +535,7 @@ startNewGame = function() {
 			});
 		});
 		
-		score.add(scoreDelta*10);
+		score.add(scoreDelta);
 		if(tweenCount === 0 && callback) callback();
 	};
 	
@@ -593,7 +614,6 @@ startNewGame = function() {
 				}),
 				true);
 			_.find(potBonusTiles, function(tile, index) {
-				console.log(potBonusTiles.length - index < 2, ' Did not recurs if true.');
 				if(potBonusTiles.length - index < 2) return false;
 				return _.find(potBonusTiles.slice(index+1, potBonusTiles.length), function(matchTile) {
 					var isMatch = tilesAreAdjacent(tile, matchTile);
@@ -603,7 +623,7 @@ startNewGame = function() {
 			});
 			if(bonusTiles) return bonusTiles;
 			
-			//If we don't have any bonus tiles side-by-side, then we'll look for normal tiles in a pattern that could be made into a match of three.
+			//If we don't have any bonus tiles side-by-side, then we'll look for normal tiles in a pattern that could be made into a match of three. Matches are defined in the init section, below.
 			var order = _(_.range(numTileTypes+1)).shuffle();
 			var foundObjects = false;
 			_.find(order, function(targetTileType) {
@@ -741,7 +761,7 @@ startNewGame = function() {
 	};
 	
 	
-	var runGameOver = function() {
+	var runGameOvers = function() {
 		paused = true;
 		createjs.Ticker.setPaused(true);
 		gameStatus.set('finished');
@@ -749,6 +769,7 @@ startNewGame = function() {
 			window.alert("Game Over.\nYour score is " + score.value() + " points!");
 		}, 100);
 	};
+	var runGameOver = _.once(runGameOvers);
 	
 	
 	var drawText = function (displayText, x, y, size, gradientColours) {
@@ -831,6 +852,7 @@ startNewGame = function() {
 	createjs.Ticker.addListener(stage);
 	
 	var spriteSheetA = new createjs.Bitmap("images/CC_Sprite_Sheet.png");
+	var spriteSheetB = new createjs.Bitmap("images/CC_Grid_Sprite_Sheet_v2.png");
 	
 	if(numTileTypes < 3) {
 		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
@@ -848,6 +870,7 @@ startNewGame = function() {
 	var numTileTypes = (typeof iTiles !== 'undefined' && iTiles || 6) - 1;
 	var mode = typeof iMode !== 'undefined' && iMode || 'turns'; //turns, time
 	
+	var scoreMultiplier = 1; //Reset to 1 elsewhere too.
 	var score = watchableCounter(
 		typeof iScore !== 'undefined' && iScore || 0);
 	var remainingTiles = watchableCounter(
@@ -855,9 +878,12 @@ startNewGame = function() {
 	var remainingTime = watchableCounter(
 		typeof iTime !== 'undefined' && iTime || 180);
 	
+	var jelly = typeof iJelly !== 'undefined' && !!iJelly || false;
+	
 	var gameStatus = watchableCounter('playing'); //playing, finished
 	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
 	
+	var jellyContainer = new createjs.Container();   stage.addChild(jellyContainer); //global zorders
 	var tileContainer = new createjs.Container();    stage.addChild(tileContainer);
 	var effectContainer = new createjs.Container();  stage.addChild(effectContainer);
 	var overlayContainer = new createjs.Container(); stage.addChild(overlayContainer);
@@ -866,7 +892,17 @@ startNewGame = function() {
 	gamefield.map(function(row, row_count) {
 		row.map(function(tile, column_count) {
 			gamefield[row_count][column_count] = getNewTile(row_count, column_count);
-		});});
+		});
+	});
+	
+	if(jelly) {
+		var jellyfield = makeField();
+		jellyfield.map(function(row, row_count) {
+			row.map(function(tile, column_count) {
+				jellyfield[row_count][column_count] = getNewJellyTile(row_count, column_count);
+			});
+		});
+	}
 	
 	var paused = false;
 	var noInput = false;	//We'll set this to true when we're animating the board, so that we don't select objects that get removed accidentally.
@@ -946,7 +982,7 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	//drawText('Test.', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
+	//drawText('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"], 0);
 	
 	
 	
@@ -970,9 +1006,9 @@ startNewGame = function() {
 				}
 			} else {
 				if(tile){
-					selectionIndicator = spriteSheetA.clone();
-					selectionIndicator.sourceRect = new createjs.Rectangle(0, 145, 71, 71),
-					selectionIndicator.regY = 4;
+					selectionIndicator = spriteSheetB.clone();
+					selectionIndicator.sourceRect = new createjs.Rectangle(936, 73, 71, 71),
+					selectionIndicator.regX = -1; selectionIndicator.regY = 4;
 					effectContainer.addChild(selectionIndicator);
 					selectionIndicator.x = tile.xFromTile();
 					selectionIndicator.y = tile.yFromTile();
@@ -1010,10 +1046,11 @@ startNewGame = function() {
 		}
 		
 		// Debug code. If we middle-click, it sets the tile to an orange candy.
-		var overTileX = pixToTile(evt.stageX, tileWidth);
-		var overTileY = pixToTile(evt.stageY, tileHeight);
-		gamefield[overTileX][overTileY].remove();
-		gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, "hor", 1);
+		// var overTileX = pixToTile(evt.stageX, tileWidth);
+		// var overTileY = pixToTile(evt.stageY, tileHeight);
+		// gamefield[overTileX][overTileY].remove();
+		// gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, "point", 1);
+		console.log(scoreMultiplier);
 	};
 	
 	

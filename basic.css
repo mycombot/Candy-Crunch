@@ -28,6 +28,7 @@ canvas#main {
 
 p.textDisplay {
 	background-color: #FFCDCE;
+	color: #364830;
 	border-radius: 10px;
 	box-shadow: inset 5px 5px 10px -5px black, inset -5px -5px 10px -5px white;
 	margin: 0px;
