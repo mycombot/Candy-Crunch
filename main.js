@@ -1,4 +1,4 @@
-/*global createjs console _ $ averageRGB iTiles iMode iScore iMoves iTime iJelly*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
+/*global createjs console _ $ averageRGB isFL iTiles iMode iScore iMoves iTime iJelly*/// JSLint is good at catching errors, but it has it's own, strange, ideas about style.
 //Chromium: Run with --allow-file-access-from-files. It'll be fine in production, once we get it on a remote server.
 
 /* === PROGRAM OVERVIEW ===
@@ -302,8 +302,7 @@ startNewGame = function() {
 		var fireballStretch = 0.7;
 		var animateFireballs = function(source_tile, fireballs) {
 			fireballs.map(function(fireball) {
-				fireball.sourceRect = new createjs.Rectangle(234, 512, 63, 43);
-				console.log(fireball);
+				fireball.sourceRect = new createjs.Rectangle(480, 596, 206, 33);
 				fireball.regX = fireball.sourceRect.width/2; fireball.regY = fireball.sourceRect.height/2;
 				fireball.x = source_tile.x + tileWidth/2; fireball.y = source_tile.y + tileHeight/2;
 				effectContainer.addChild(fireball);
@@ -326,26 +325,23 @@ startNewGame = function() {
 					var fireballs;
 					switch(bonusName) {
 						case 'hor':
-							console.log(bonusName);
-							fireballs = [spriteSheetA.clone(), spriteSheetA.clone()];
-							fireballs[1].rotation = 180;
+							fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
+							fireballs[0].rotation = 180;
 							fireballs[0].escapeVector = [-1,0];
 							fireballs[1].escapeVector = [1,0];
 							animateFireballs(tile, fireballs);
 							break;
 						case 'ver':
-							console.log(bonusName);
-							fireballs = [spriteSheetA.clone(), spriteSheetA.clone()];
-							fireballs[0].rotation = 270;
-							fireballs[1].rotation = 90;
+							fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
+							fireballs[1].rotation = 270;
+							fireballs[0].rotation = 90;
 							fireballs[0].escapeVector = [0,1];
 							fireballs[1].escapeVector = [0,-1];
 							animateFireballs(tile, fireballs);
 							break;
 						case 'point':
-							console.log(bonusName);
-							var explosion = spriteSheetA.clone();
-							explosion.sourceRect = new createjs.Rectangle(0, 512, 234, 210);
+							var explosion = spriteSheetB.clone();
+							explosion.sourceRect = new createjs.Rectangle(507, 643, 229, 224);
 							explosion.regX = explosion.sourceRect.width/2; explosion.regY = explosion.sourceRect.height/2;
 							explosion.x = tile.x + tileWidth/2; explosion.y = tile.y + tileHeight/2;
 							explosion.alpha = 1;
@@ -898,7 +894,6 @@ startNewGame = function() {
 	}
 	createjs.Ticker.addListener(stage);
 	
-	var spriteSheetA = new createjs.Bitmap("images/CC_Sprite_Sheet.png");
 	var spriteSheetB = new createjs.Bitmap("images/CC_Grid_Sprite_Sheet_v2.png");
 	
 	if(numTileTypes < 3) {
@@ -930,6 +925,7 @@ startNewGame = function() {
 	var gameStatus = watchableCounter('playing'); //playing, finished
 	delete gameStatus.add; //Can't 'add' to the game status as it's a string; use set instead.
 	
+	if(isFL) stage.addChild(new createjs.Bitmap("images/CC_Gameboard_2.png")); //Re-add the background, as it seems flash can't have a CSS background image.
 	var jellyContainer = new createjs.Container();   stage.addChild(jellyContainer); //global zorders
 	var tileContainer = new createjs.Container();    stage.addChild(tileContainer);
 	var effectContainer = new createjs.Container();  stage.addChild(effectContainer);
@@ -1093,10 +1089,12 @@ startNewGame = function() {
 		}
 		
 		// Debug code. If we middle-click, it sets the tile to an orange candy.
-		// var overTileX = pixToTile(evt.stageX, tileWidth);
-		// var overTileY = pixToTile(evt.stageY, tileHeight);
-		// gamefield[overTileX][overTileY].remove();
-		// gamefield[overTileX][overTileY] = getNewTile(overTileX, overTileY, "point", 1);
+		var overTileX = pixToTile(evt.stageX, tileWidth);
+		var overTileY = pixToTile(evt.stageY, tileHeight);
+		gamefield[overTileX][overTileY].remove();
+		var tile = getNewTile(overTileX, overTileY, "point", 1);
+		tile.bonuses=["point"];
+		gamefield[overTileX][overTileY] = tile;
 	};
 	
 	

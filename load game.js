@@ -14,6 +14,7 @@ jQuery.ajaxSetup({
         });
 
 var mainWindow = null;
+var isFL = null;
 var loadGame = function() {
 	"use strict";
 	
@@ -25,7 +26,8 @@ var loadGame = function() {
 	};
 	createjs.FLSetup.run(onSetupSuccess, onSetupFailure, options);
 
-	function onSetupSuccess(isFL){
+	function onSetupSuccess(isFL_){
+		isFL = isFL_;
 		var loadOtherScriptsCount = 0;
 		var jsAr = [
 			"../tween.js/lib/tweenjs-0.3.0.min.js",
