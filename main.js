@@ -140,7 +140,7 @@ startNewGame = function() {
 	
 	var getNewJellyTile = function(x,y) {
 		var tile = spriteSheetB.clone();
-		tile.sourceRect = new createjs.Rectangle(317, 687, 71, 63);
+		tile.sourceRect = new createjs.Rectangle(312, 710, 66, 65);
 		makeTileLocatable(tile, x,y);
 		tile.remove = function() {
 			jellyfield[x][y] = null;
@@ -320,7 +320,7 @@ startNewGame = function() {
 			});
 		};
 		
-		var spawnBonusEffects = function(tiles) {
+		var spawnBonusEffects = function(tiles, callback) {
 			tiles.map(function(tile) {
 				tile.bonuses.map(function(bonusName) {
 					var fireballs;
@@ -369,6 +369,7 @@ startNewGame = function() {
 					}
 				});
 			});
+			callback();
 		};
 		
 		var tilesAffectedByBonus = function(tile) {
@@ -460,19 +461,22 @@ startNewGame = function() {
 					computeBonusRemoves(init);
 				}
 			})(tilesToRemove, function() {tilesToRemove=[];});
+			bonusesToApply = bonusesToApply.filter(function(tile) {
+				return tile.bonuses.length;
+			});
 			
-			spawnBonusEffects(bonusesToApply.filter(function(tile) {return tile.bonuses.length;}));
-			
-			removeMatchingTilesAndAddBonuses(
-				tilesToRemove,
-				newBonuses,
-				function () {
-					fallTiles(function() {
-						var tilesToRemove = searchForMatches();
-						matchesMadeThisMove += tilesToRemove.length;
-						removeMatchesInternal(tilesToRemove);
-					});
-				} );
+			spawnBonusEffects(bonusesToApply, function() {
+				removeMatchingTilesAndAddBonuses(
+					tilesToRemove,
+					newBonuses,
+					function () {
+						fallTiles(function() {
+							var tilesToRemove = searchForMatches();
+							matchesMadeThisMove += tilesToRemove.length;
+							removeMatchesInternal(tilesToRemove);
+						});
+					} );
+				});
 			
 			//Spawn bonus candies, remove tiles that should be removed, including tiles affected by a bonus being removed.
 			//Check for additional removable matches and remove them using this function.
