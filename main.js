@@ -105,7 +105,7 @@ startNewGame = function() {
 				throw "bad isBonus value";
 			}
 			
-			var tileIndex = type===undefined ? _.random(numTileTypes) : type;
+			var tileIndex = (typeof type!=="number") ? _.random(numTileTypes) : type;
 			var tileToReturn = spriteSheetB.clone();
 			tileToReturn.sourceRect = !isBonus ? tileSourceRects.normal[tileIndex].clone() : tileSourceRects[isBonus][tileIndex].clone();
 			
@@ -320,44 +320,76 @@ startNewGame = function() {
 		};
 		
 		var spawnBonusEffects = function(tiles, callback) {
+			var delay = _.contains(_.flatten(_.pluck(tiles, 'bonuses')), 'like') ? 250 : 0;
 			tiles.map(function(tile) {
 				tile.bonuses.map(function(bonusName) {
 					var fireballs;
 					switch(bonusName) {
 						case 'hor':
-							fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
-							fireballs[0].rotation = 180;
-							fireballs[0].escapeVector = [-1,0];
-							fireballs[1].escapeVector = [1,0];
-							animateFireballs(tile, fireballs);
+							window.setTimeout(function() {
+								fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
+								fireballs[0].rotation = 180;
+								fireballs[0].escapeVector = [-1,0];
+								fireballs[1].escapeVector = [1,0];
+								animateFireballs(tile, fireballs);
+							}, delay);
 							break;
 						case 'ver':
-							fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
-							fireballs[1].rotation = 270;
-							fireballs[0].rotation = 90;
-							fireballs[0].escapeVector = [0,1];
-							fireballs[1].escapeVector = [0,-1];
-							animateFireballs(tile, fireballs);
+							window.setTimeout(function() {
+								fireballs = [spriteSheetB.clone(), spriteSheetB.clone()];
+								fireballs[1].rotation = 270;
+								fireballs[0].rotation = 90;
+								fireballs[0].escapeVector = [0,1];
+								fireballs[1].escapeVector = [0,-1];
+								animateFireballs(tile, fireballs);
+							}, delay);
 							break;
 						case 'point':
-							var explosion = spriteSheetB.clone();
-							explosion.sourceRect = new createjs.Rectangle(507, 643, 229, 224);
-							explosion.regX = explosion.sourceRect.width/2; explosion.regY = explosion.sourceRect.height/2;
-							explosion.x = tile.x + tileWidth/2; explosion.y = tile.y + tileHeight/2;
-							explosion.alpha = 1;
-							explosion.scaleX = 0.5; explosion.scaleY = 0.5;
-							effectContainer.addChild(explosion);
-							createjs.Tween.get(explosion)
-								.to({
-									alpha: 0,
-									scaleX: 1.5, scaleY: 1.5
-								}, 500, createjs.Ease.circOut)
-								.call(function() {
-									effectContainer.removeChild(explosion);
-								});
+							window.setTimeout(function() {
+								var explosion = spriteSheetB.clone();
+								explosion.sourceRect = new createjs.Rectangle(507, 643, 229, 224);
+								explosion.regX = explosion.sourceRect.width/2; explosion.regY = explosion.sourceRect.height/2;
+								explosion.x = tile.x + tileWidth/2; explosion.y = tile.y + tileHeight/2;
+								explosion.alpha = 1;
+								explosion.scaleX = 0.5; explosion.scaleY = 0.5;
+								effectContainer.addChild(explosion);
+								createjs.Tween.get(explosion)
+									.to({
+										alpha: 0,
+										scaleX: 1.5, scaleY: 1.5
+									}, 500, createjs.Ease.circOut)
+									.call(function() {
+										effectContainer.removeChild(explosion);
+									});
+							}, delay);
 							break;
 						case 'like':
-							console.log(bonusName, 'TODO: Lightning to index ' + tile.matchedWithIndex + '.');
+							_.flatten(
+								gamefield.map(function(column) {
+									return column.filter(function(targetTile) {
+										return targetTile.index === tile.matchedWithIndex;
+									});
+								}), true)
+							.sort(function(a,b) {
+								return a.tileX > b.tileX;
+							})
+							.map(function(targetTile, index) {
+								window.setTimeout(function() {
+									var lightning = spriteSheetB.clone();
+									var lightningLength = Math.min(707, Math.sqrt(Math.pow(targetTile.y-tile.y, 2) + Math.pow(targetTile.x-tile.x, 2)) ); //408 is max.
+									lightning.sourceRect = new createjs.Rectangle(416, 299+(707-lightningLength), 66, lightningLength);
+									lightning.regX = lightning.sourceRect.width/2;
+									lightning.x = targetTile.x + tileWidth/2; lightning.y = targetTile.y + tileHeight/2;
+									lightning.rotation = Math.atan2(targetTile.y-tile.y, targetTile.x-tile.x) * 180 / Math.PI + 90;
+									lightning.onTick = function() {
+										lightning.scaleX = (Math.random() > 0.5 ? 1 : -1) * (Math.random()/8+0.8);
+									};
+									effectContainer.addChild(lightning);
+									window.setTimeout(function() {
+										effectContainer.removeChild(lightning);
+									}, 100);
+								}, index*37.5);
+							});
 							break;
 						default:
 							console.warn('spawnBonusEffects was passed a tile with a bonus of type \'' + bonusName + '\', which isn\'t a valid bonus.');
@@ -365,7 +397,7 @@ startNewGame = function() {
 					}
 				});
 			});
-			callback();
+			window.setTimeout(callback, delay);
 		};
 		
 		var tilesAffectedByBonus = function(tile) {
@@ -1092,8 +1124,9 @@ startNewGame = function() {
 		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		gamefield[overTileX][overTileY].remove();
-		var tile = getNewTile(overTileX, overTileY, "point", 1);
-		tile.bonuses=["point"];
+		var tile = getNewTile(overTileX, overTileY, "like", 1);
+		tile.index = -1;
+		tile.bonuses=["like"];
 		gamefield[overTileX][overTileY] = tile;
 	};
 	
