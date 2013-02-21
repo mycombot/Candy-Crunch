@@ -61,44 +61,6 @@ startNewGame = function() {
 		};
 	
 	var getNewTile = function(){
-		var tileSourceRects = { //sourceRect is not cloned when we clone the bitmap. We must define sourceRects instead of bitmaps.
-			normal: [
-				new createjs.Rectangle(  0,  5, 71, 63),
-				new createjs.Rectangle( 72,  5, 71, 63),
-				new createjs.Rectangle(144,  5, 71, 63),
-				new createjs.Rectangle(216,  5, 71, 63),
-				new createjs.Rectangle(288,  5, 71, 63),
-				new createjs.Rectangle(360,  5, 71, 63) ],
-			ver: [
-				new createjs.Rectangle(432,  5, 71, 63),
-				new createjs.Rectangle(504,  5, 71, 63),
-				new createjs.Rectangle(576,  5, 71, 63),
-				new createjs.Rectangle(648,  5, 71, 63),
-				new createjs.Rectangle(720,  5, 71, 63),
-				new createjs.Rectangle(792,  5, 71, 63) ],
-			hor: [
-				new createjs.Rectangle(864,  5, 71, 63),
-				new createjs.Rectangle(936,  5, 71, 63),
-				new createjs.Rectangle(  0, 76, 71, 63),
-				new createjs.Rectangle( 72, 76, 71, 63),
-				new createjs.Rectangle(144, 76, 71, 63),
-				new createjs.Rectangle(216, 76, 71, 63) ],
-			point: [
-				new createjs.Rectangle(288, 76, 71, 63),
-				new createjs.Rectangle(360, 76, 71, 63),
-				new createjs.Rectangle(432, 76, 71, 63),
-				new createjs.Rectangle(504, 76, 71, 63),
-				new createjs.Rectangle(576, 76, 71, 63),
-				new createjs.Rectangle(648, 76, 71, 63) ],
-			like: [ //Offset this to 147. (+3)
-				new createjs.Rectangle(721, 73, 71, 69),
-				new createjs.Rectangle(721, 73, 71, 69),
-				new createjs.Rectangle(721, 73, 71, 69),
-				new createjs.Rectangle(721, 73, 71, 69),
-				new createjs.Rectangle(721, 73, 71, 69),
-				new createjs.Rectangle(721, 73, 71, 69) ]
-			};
-			
 		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin. type is the index of the bitmap. isBonus can be undefined or the type of bonus.
 			if(!_.contains([undefined, "hor", "ver", "point", "like"], isBonus) && undefined !== isBonus) { //_.contains doesn't work in ie8 with undefined.
 				console.warn("isBonus is '" + isBonus + "', shouldn't be.");
@@ -209,7 +171,7 @@ startNewGame = function() {
 			.call(function() {
 				var aMatches = [linesInDir(a, 'h'), linesInDir(a, 'v')];
 				var bMatches = [linesInDir(b, 'h'), linesInDir(b, 'v')];
-				if((a.index < 0 || b.index < 0) && b.index != a.index) {
+				if(((a.index < 0 || b.index < 0) && b.index != a.index) || (a.isBonus && b.isBonus)) { //Chocolate-bombs are "indexless", at -1. (This keeps them from being matched normally with regards to the hint bounce.) If tile a xor tile b is chocolate, OR tile a and tile b are both bonus tiles, then we need to combine the two tiles we're switching. (We won't care about 'normal' matches, in this case.)
 					removeTilesByIndex(a,b);
 					if(mode === 'turns') remainingTiles.add(-1);
 				} else if(	aMatches[0].length > 1 || //[TILES]: see if we made any matches.
@@ -304,7 +266,7 @@ startNewGame = function() {
 			fireballs.map(function(fireball) {
 				fireball.sourceRect = new createjs.Rectangle(480, 596, 206, 33);
 				fireball.regX = fireball.sourceRect.width/2; fireball.regY = fireball.sourceRect.height/2;
-				fireball.x = source_tile.x + tileWidth/2; fireball.y = source_tile.y + tileHeight/2;
+				fireball.x = source_tile.x + tileWidth/2 + (fireball.initialOffsetX||0); fireball.y = source_tile.y + tileHeight/2 + (fireball.initialOffsetY||0);
 				effectContainer.addChild(fireball);
 				createjs.Tween.get(fireball)
 					.to({
@@ -320,7 +282,10 @@ startNewGame = function() {
 		};
 		
 		var spawnBonusEffects = function(tiles, callback) {
-			var delay = _.contains(_.flatten(_.pluck(tiles, 'bonuses')), 'like') ? 250 : 0;
+			var allBonuses = _.flatten(_.pluck(tiles, 'bonuses'));
+			var delay = 0;
+			if(_.contains(allBonuses, 'like')) delay = 250;
+			if(_.contains(allBonuses, 'giant')) delay = 400;
 			tiles.map(function(tile) {
 				tile.bonuses.map(function(bonusName) {
 					var fireballs;
@@ -367,7 +332,7 @@ startNewGame = function() {
 							_.flatten(
 								gamefield.map(function(column) {
 									return column.filter(function(targetTile) {
-										return targetTile.index === tile.matchedWithIndex;
+										return targetTile.index === tile.matchedWithIndex || tile.matchedWithIndex === -1;
 									});
 								}), true)
 							.sort(function(a,b) {
@@ -376,7 +341,7 @@ startNewGame = function() {
 							.map(function(targetTile, index) {
 								window.setTimeout(function() {
 									var lightning = spriteSheetB.clone();
-									var lightningLength = Math.min(707, Math.sqrt(Math.pow(targetTile.y-tile.y, 2) + Math.pow(targetTile.x-tile.x, 2)) ); //408 is max.
+									var lightningLength = Math.min(707, Math.sqrt(Math.pow(targetTile.y-tile.y, 2) + Math.pow(targetTile.x-tile.x, 2)) ); //707 is max. Otherwise, calculates length between two points.
 									lightning.sourceRect = new createjs.Rectangle(416, 299+(707-lightningLength), 66, lightningLength);
 									lightning.regX = lightning.sourceRect.width/2;
 									lightning.x = targetTile.x + tileWidth/2; lightning.y = targetTile.y + tileHeight/2;
@@ -388,8 +353,67 @@ startNewGame = function() {
 									window.setTimeout(function() {
 										effectContainer.removeChild(lightning);
 									}, 100);
-								}, index*37.5);
+								}, index*(tile.matchedWithIndex !== -1 ? 37.5 : 7.5));
+								if(tile.matchedWithIndex === -1) delay = 500;
 							});
+							break;
+						case 'giant':
+							var overtile = spriteSheetB.clone();
+							overtile.sourceRect = tileSourceRects.hor[tile.index].clone();
+							overtile.regX = overtile.sourceRect.width/2; overtile.regY = overtile.sourceRect.height/2;
+							overtile.scaleX = 2; overtile.scaleY = 2;
+							overtile.x = tile.x+tileWidth/2; overtile.y = tile.y+tileHeight/2;
+							effectContainer.addChild(overtile);
+							createjs.Tween.get(overtile)
+								.to({
+									scaleX: 3, scaleY: 3
+								}, 400, createjs.Ease.circIn)
+								.call(function() {
+									fireballs = _.range(12).map(function() {
+										return spriteSheetB.clone();
+									});
+									
+									_.range(0,3).map(function(index) {
+										fireballs[index].rotation = 0;
+										fireballs[index].escapeVector = [1,0];
+									});
+									fireballs[0].initialOffsetY = tileHeight;
+									fireballs[1].initialOffsetX = tileWidth;
+									fireballs[2].initialOffsetY = -tileHeight;
+									
+									_.range(3,6).map(function(index) {
+										fireballs[index].rotation = 180;
+										fireballs[index].escapeVector = [-1,0];
+									});
+									fireballs[3].initialOffsetY = tileHeight;
+									fireballs[4].initialOffsetX = -tileWidth;
+									fireballs[5].initialOffsetY = -tileHeight;
+									
+									_.range(6,9).map(function(index) {
+										fireballs[index].rotation = 90;
+										fireballs[index].escapeVector = [0,1];
+									});
+									fireballs[6].initialOffsetX = tileWidth;
+									fireballs[7].initialOffsetY = tileHeight;
+									fireballs[8].initialOffsetX = -tileWidth;
+									
+									_.range(9,12).map(function(index) {
+										fireballs[index].rotation = 270;
+										fireballs[index].escapeVector = [0,-1];
+									});
+									fireballs[9].initialOffsetX = tileWidth;
+									fireballs[10].initialOffsetY = -tileHeight;
+									fireballs[11].initialOffsetX = -tileWidth;
+									
+									animateFireballs(tile, fireballs);
+								})
+								.to({
+									scaleX: 4, scaleY: 4,
+									alpha: 0
+								}, 100, createjs.Ease.linear)
+								.call(function() {
+									effectContainer.removeChild(overtile);
+								});
 							break;
 						default:
 							console.warn('spawnBonusEffects was passed a tile with a bonus of type \'' + bonusName + '\', which isn\'t a valid bonus.');
@@ -464,13 +488,8 @@ startNewGame = function() {
 						matchPair[1][1].length > 1 ? matchPair[1][1] : [],
 						matchPair[0]);
 				});
-			} else { //This mode is the one where we remove all the tiles of a certain type.
-				tilesToRemove = tilesToRemove.concat(matches[0][0], matches[0][1]);
-				gamefield.map(function(column) {
-					tilesToRemove = tilesToRemove.concat(column.filter(function(tile) {
-						return tile.index === matches[0][1].index;
-					}));
-				});
+			} else { //This mode is the one where we switch two tile types.
+				tilesToRemove = pairComboTilesToRemove(matches[0][0], matches[0][1]);
 			}
 			//console.log(tilesToRemove);
 			
@@ -513,7 +532,7 @@ startNewGame = function() {
 	
 	
 	var removeTilesByIndex = function(a,b) { // a xor b is a chocolate-covered candy (one with index -1)
-		if(a.index > b.index) { //Let's have the "a" object be the chocolate-covered one.
+		if(b.index < 0 && a.index > b.index) { //Let's have the "a" object be the chocolate-covered one.
 			var tmp = a;
 			a = b;
 			b = tmp;
@@ -522,6 +541,32 @@ startNewGame = function() {
 		removeMatches([[a, b]]);
 	};
 	
+	
+	var pairComboTilesToRemove = function(tileA, tileB) { //Tile B will be the 'normal' tile, if applicable. Otherwise, it is the tile that was selected first in the switch.
+		var tilesToRemove; //list
+		if(tileA.index === -1 && tileB.index === -1) { //Combine two chocolate bombs to clear the gamefield.
+			tileB.bonuses = [];
+			tilesToRemove = _.flatten(gamefield, true);
+		} else if(tileA.index === -1) { //Combine a chocolate bomb with a candy to clear that colour from the gamefield.
+			tilesToRemove = [tileA]; //We'll remove tileB in the following filter for matching tiles (It'll match itself.)
+			gamefield.map(function(column) {
+				tilesToRemove = tilesToRemove.concat(column.filter(function(tile) {
+					return tile.index === tileB.index;
+				}));
+			});
+			return tilesToRemove;
+		} else if ((_.contains(tileA.bonuses, 'hor') || _.contains(tileA.bonuses, 'ver')) && _.contains(tileB.bonuses, 'point') || (_.contains(tileB.bonuses, 'hor') || _.contains(tileB.bonuses, 'ver')) && _.contains(tileA.bonuses, 'point') ) {
+			tileB.bonuses = ['giant'];
+			tileA.bonuses = [];
+			tilesToRemove = _.flatten(gamefield, true)
+				.filter(function(tile) {
+					return Math.abs(tile.tileX - tileB.tileX) < 2 ||Math.abs(tile.tileY - tileB.tileY) < 2;
+				});
+		} else {
+			tilesToRemove = [tileA, tileB]; //Default is to allow tiles to be removed... right?
+		}
+		return tilesToRemove;
+	};
 	
 	var fallSpeed = 400000;
 	var fallTiles = function(callback) {
@@ -928,6 +973,44 @@ startNewGame = function() {
 	
 	var spriteSheetB = new createjs.Bitmap("images/CC_Grid_Sprite_Sheet_v2.png");
 	
+	var tileSourceRects = { //sourceRect is not cloned when we clone the bitmap. We must define sourceRects instead of bitmaps.
+		normal: [
+			new createjs.Rectangle(  0,  5, 71, 63),
+			new createjs.Rectangle( 72,  5, 71, 63),
+			new createjs.Rectangle(144,  5, 71, 63),
+			new createjs.Rectangle(216,  5, 71, 63),
+			new createjs.Rectangle(288,  5, 71, 63),
+			new createjs.Rectangle(360,  5, 71, 63) ],
+		ver: [
+			new createjs.Rectangle(432,  5, 71, 63),
+			new createjs.Rectangle(504,  5, 71, 63),
+			new createjs.Rectangle(576,  5, 71, 63),
+			new createjs.Rectangle(648,  5, 71, 63),
+			new createjs.Rectangle(720,  5, 71, 63),
+			new createjs.Rectangle(792,  5, 71, 63) ],
+		hor: [
+			new createjs.Rectangle(864,  5, 71, 63),
+			new createjs.Rectangle(936,  5, 71, 63),
+			new createjs.Rectangle(  0, 76, 71, 63),
+			new createjs.Rectangle( 72, 76, 71, 63),
+			new createjs.Rectangle(144, 76, 71, 63),
+			new createjs.Rectangle(216, 76, 71, 63) ],
+		point: [
+			new createjs.Rectangle(288, 76, 71, 63),
+			new createjs.Rectangle(360, 76, 71, 63),
+			new createjs.Rectangle(432, 76, 71, 63),
+			new createjs.Rectangle(504, 76, 71, 63),
+			new createjs.Rectangle(576, 76, 71, 63),
+			new createjs.Rectangle(648, 76, 71, 63) ],
+		like: [ //Offset this to 147. (+3)
+			new createjs.Rectangle(721, 73, 71, 69),
+			new createjs.Rectangle(721, 73, 71, 69),
+			new createjs.Rectangle(721, 73, 71, 69),
+			new createjs.Rectangle(721, 73, 71, 69),
+			new createjs.Rectangle(721, 73, 71, 69),
+			new createjs.Rectangle(721, 73, 71, 69) ]
+		};
+	
 	if(numTileTypes < 3) {
 		console.warn('You have specified fewer than four tile types via iTiles. This pretty much guarantees that a board with fewer than three similar tile types in a row can\'t be generated. Instead of recursing to death, an error will be thrown now to save you a few moments.'); //Three will work... for a while, at least. Two just crashes when we try to generate the board.
 		throw "too few tiles";
@@ -1123,10 +1206,31 @@ startNewGame = function() {
 		// Debug code. If we middle-click, it sets the tile to an orange candy.
 		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
+		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
 		gamefield[overTileX][overTileY].remove();
-		var tile = getNewTile(overTileX, overTileY, "like", 1);
-		tile.index = -1;
-		tile.bonuses=["like"];
+		switch(oldBonus) {
+			case "hor":
+				var tile = getNewTile(overTileX, overTileY, "ver", 1);
+				tile.bonuses=["ver"];
+				break;
+			case "ver":
+				var tile = getNewTile(overTileX, overTileY, "point", 1);
+				tile.bonuses=["point"];
+				break;
+			case "point":
+				var tile = getNewTile(overTileX, overTileY, "like", 1);
+				tile.bonuses=["like"];
+				tile.index = -1;
+				break;
+			case "like":
+				var tile = getNewTile(overTileX, overTileY, "hor", 1);
+				tile.bonuses=["hor"];
+				break;
+			default:
+				var tile = getNewTile(overTileX, overTileY, "hor", 1);
+				tile.bonuses=["hor"];
+				break;
+		}
 		gamefield[overTileX][overTileY] = tile;
 	};
 	
