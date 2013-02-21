@@ -82,10 +82,12 @@ startNewGame = function() {
 			tileToReturn.isBonus = !!isBonus;
 			tileToReturn.bonuses = [];
 			
-			tileToReturn.remove = function() { //Note: Only call if you've actually added this tile to the stage.
+			tileToReturn.remove = function(quietly) { //Note: Only call if you've actually added this tile to the stage. Set "quietly" to true if you're subbing out this tile for another one. If "quietly", score popup is suppressed and jelly isn't removed.
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
-				if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
-				drawTileScore(Math.floor(40 * (matchesMadeThisMove/2+1)), tileToReturn.x+tileWidth/2, tileToReturn.y+tileHeight/2, 30, ["#F8DB63", "#CF8A09"]);
+				if(!quietly) {
+					if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
+					drawTileScore(Math.floor(40 * (matchesMadeThisMove/2+1)), tileToReturn.x+tileWidth/2, tileToReturn.y+tileHeight/2, 30, ["#F8DB63", "#CF8A09"]);
+				}
 				tileContainer.removeChild(tileToReturn);
 			};
 			
@@ -369,6 +371,8 @@ startNewGame = function() {
 									scaleX: 3, scaleY: 3
 								}, 400, createjs.Ease.circIn)
 								.call(function() {
+									tile.alpha = 0;
+									
 									fireballs = _.range(12).map(function() {
 										return spriteSheetB.clone();
 									});
@@ -547,6 +551,21 @@ startNewGame = function() {
 		if(tileA.index === -1 && tileB.index === -1) { //Combine two chocolate bombs to clear the gamefield.
 			tileB.bonuses = [];
 			tilesToRemove = _.flatten(gamefield, true);
+		} else if(tileA.index === -1 && (_.contains(tileB.bonuses, 'hor') || _.contains(tileB.bonuses, 'ver'))) { //Combine a chocolate bomb with a striped candy to transmute and clear that colour from the gamefield.
+			tilesToRemove = [tileA]; //We'll remove tileB in the following filter for matching tiles (It'll match itself.)
+			gamefield.map(function(column) {
+				tilesToRemove = tilesToRemove.concat(column.filter(function(tile) {
+					return tile.index === tileB.index;
+				}).map(function(tile) {
+						tile.remove(true);
+						var bonus = Math.random() < 0.5 ? "hor" : "ver";
+						tile = getNewTile(tile.tileX, tile.tileY, bonus, tile.index);
+						tile.bonuses = [bonus];
+						gamefield[tile.tileX][tile.tileY] = tile;
+						return tile;
+				}));
+			});
+			return tilesToRemove;
 		} else if(tileA.index === -1) { //Combine a chocolate bomb with a candy to clear that colour from the gamefield.
 			tilesToRemove = [tileA]; //We'll remove tileB in the following filter for matching tiles (It'll match itself.)
 			gamefield.map(function(column) {
@@ -555,7 +574,7 @@ startNewGame = function() {
 				}));
 			});
 			return tilesToRemove;
-		} else if ((_.contains(tileA.bonuses, 'hor') || _.contains(tileA.bonuses, 'ver')) && _.contains(tileB.bonuses, 'point') || (_.contains(tileB.bonuses, 'hor') || _.contains(tileB.bonuses, 'ver')) && _.contains(tileA.bonuses, 'point') ) {
+		} else if ((_.contains(tileA.bonuses, 'hor') || _.contains(tileA.bonuses, 'ver')) && _.contains(tileB.bonuses, 'point') || (_.contains(tileB.bonuses, 'hor') || _.contains(tileB.bonuses, 'ver')) && _.contains(tileA.bonuses, 'point') ) { //Combining a striped candy and a wrapped candy produce a big explosion!
 			tileB.bonuses = ['giant'];
 			tileA.bonuses = [];
 			tilesToRemove = _.flatten(gamefield, true)
@@ -1207,7 +1226,7 @@ startNewGame = function() {
 		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
-		gamefield[overTileX][overTileY].remove();
+		gamefield[overTileX][overTileY].remove(true);
 		switch(oldBonus) {
 			case "hor":
 				var tile = getNewTile(overTileX, overTileY, "ver", 1);
