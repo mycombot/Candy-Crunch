@@ -82,9 +82,7 @@ startNewGame = function() {
 			starburst.x = x; starburst.y = y;
 			starburst.play();
 			effectContainer.addChild(starburst);
-			console.log(starburst);
 			starburst.onAnimationEnd = function() {
-				console.log('removed');
 				effectContainer.removeChild(starburst);
 			};
 			return starburst;
@@ -567,18 +565,20 @@ startNewGame = function() {
 			});
 			
 			tilesToRemove.map(function(tile) {tile.burst();});
-			spawnBonusEffects(bonusesToApply, function() {
-				removeMatchingTilesAndAddBonuses(
-					tilesToRemove,
-					newBonuses,
-					function () {
-						fallTiles(function() {
-							var tilesToRemove = searchForMatches();
-							matchesMadeThisMove += tilesToRemove.length;
-							removeMatchesInternal(tilesToRemove);
+			window.setTimeout(function() {
+				spawnBonusEffects(bonusesToApply, function() {
+					removeMatchingTilesAndAddBonuses(
+						tilesToRemove,
+						newBonuses,
+						function () {
+							fallTiles(function() {
+								var tilesToRemove = searchForMatches();
+								matchesMadeThisMove += tilesToRemove.length;
+								removeMatchesInternal(tilesToRemove);
+							});
 						});
-					} );
-				});
+					});
+				}, 250);
 			
 			//Spawn bonus candies, remove tiles that should be removed, including tiles affected by a bonus being removed.
 			//Check for additional removable matches and remove them using this function.
@@ -632,6 +632,14 @@ startNewGame = function() {
 				.filter(function(tile) {
 					return Math.abs(tile.tileX - tileB.tileX) < 2 ||Math.abs(tile.tileY - tileB.tileY) < 2;
 				});
+		} else if(_.contains(tileA.bonuses, 'hor') && _.contains(tileB.bonuses, 'hor')) {
+			tileA.bonuses = [];
+			tileB.bonuses = ['ver', 'hor'];
+			tilesToRemove = [tileA, tileB];
+		} else if(_.contains(tileA.bonuses, 'ver') && _.contains(tileB.bonuses, 'ver')) {
+			tileA.bonuses = [];
+			tileB.bonuses = ['ver', 'hor'];
+			tilesToRemove = [tileA, tileB];
 		} else {
 			tilesToRemove = [tileA, tileB]; //Default is to allow tiles to be removed... right?
 		}
