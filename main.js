@@ -454,24 +454,32 @@ startNewGame = function() {
 			return affectedTiles;
 		};
 		
-		return function removeMatchesInternal(matches) { //Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match).
+		return function removeMatchesInternal(matches, flat) { //If not flat: Matches is a list of lists containing in order the 'key' object and the other objects which made up the match (a list containing row/column match). If flat: Matches is a list of tiles to remove. Skips computing additional matches and new bonus tiles.
 			if(!matches.length) {
-				noInput = false;
-				noSwitch = false;
-				if(matchesMadeThisMove > 4) {
-					drawBigOverlay('Delicious!', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
-				} else if(matchesMadeThisMove > 3) {
-					drawBigOverlay('Divine!',    Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
-				} else if(matchesMadeThisMove > 2) {
-					drawBigOverlay('Sweet!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
-				} else if(matchesMadeThisMove > 1) {
-					drawBigOverlay('Tasty!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
-				}
-				matchesMadeThisMove = 0;
+				var drawRating = function() {
+					if(matchesMadeThisMove > 4) {
+						drawBigOverlay('Delicious!', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+					} else if(matchesMadeThisMove > 3) {
+						drawBigOverlay('Divine!',    Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+					} else if(matchesMadeThisMove > 2) {
+						drawBigOverlay('Sweet!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+					} else if(matchesMadeThisMove > 1) {
+						drawBigOverlay('Tasty!',     Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+					}
+				};
 				if(remainingTiles.value() <= 0) {
-					runGameOver();
+					if(sugarRush) {
+						sugarRush();
+					} else {
+						runGameOver();
+						drawRating();
+					}
 				} else {
+					noInput = false;
+					noSwitch = false;
 					checkForPotentialMatches();
+					drawRating();
+					matchesMadeThisMove = 0;
 				}
 				return;
 			}
@@ -481,22 +489,25 @@ startNewGame = function() {
 			
 			var newBonuses = [];
 			var tilesToRemove = [];
-			if(matches[0][1].length || matches.length > 1) {
-				newBonuses = matches.map(function(matchPair) {
-					return getBonus(matchPair[0], matchPair[1]);
-					}).filter(function(bonus) {return bonus;});
-				
-				matches.map(function(matchPair) {
-					tilesToRemove = tilesToRemove.concat(
-						matchPair[1][0].length > 1 ? matchPair[1][0] : [],
-						matchPair[1][1].length > 1 ? matchPair[1][1] : [],
-						matchPair[0]);
-				});
-			} else { //This mode is the one where we switch two tile types.
-				tilesToRemove = pairComboTilesToRemove(matches[0][0], matches[0][1]);
+			if(!flat) {
+				if(matches[0][1].length || matches.length > 1) {
+					newBonuses = matches.map(function(matchPair) {
+						return getBonus(matchPair[0], matchPair[1]);
+						}).filter(function(bonus) {return bonus;});
+					
+					matches.map(function(matchPair) {
+						tilesToRemove = tilesToRemove.concat(
+							matchPair[1][0].length > 1 ? matchPair[1][0] : [],
+							matchPair[1][1].length > 1 ? matchPair[1][1] : [],
+							matchPair[0]);
+					});
+				} else { //This mode is the one where we switch two tile types.
+					tilesToRemove = pairComboTilesToRemove(matches[0][0], matches[0][1]);
+				}
+				//console.log(tilesToRemove);
+			} else {
+				tilesToRemove = matches;
 			}
-			//console.log(tilesToRemove);
-			
 			var bonusesToApply = [];
 			(function computeBonusRemoves (toCheck, first) {
 				if(first) first();
@@ -843,6 +854,7 @@ startNewGame = function() {
 		}
 	};
 	
+	
 	var stopHighlightingMatches = function() {
 		//if(highlightingPotentialMatches === true) {
 			highlightingPotentialMatches = false;
@@ -860,10 +872,24 @@ startNewGame = function() {
 		//}
 	};
 	
+	
 	var stopFutureMatchHighlight = function() {
 		hintBounce.tiles = [];
 		window.clearTimeout(hintBounce.id);
 		hintBounce.id = 0;
+	};
+	
+	
+	var sugarRush = false;
+	sugarRush = function() {
+		sugarRush = false;
+		var bonusTiles = _.flatten(gamefield, true).filter(function(tile) {
+			return tile.isBonus;
+		});
+		if(!!_.head(bonusTiles)) {
+			drawBigOverlay('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
+			removeMatches(bonusTiles, true);
+		}
 	};
 	
 	
@@ -1159,8 +1185,6 @@ startNewGame = function() {
 		}, numSeconds*1000);
 	}
 	
-	//drawText('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
-	
 	
 	
 	
@@ -1222,8 +1246,8 @@ startNewGame = function() {
 			return swallowMouseEvent(evt);
 		}
 		
-		// Debug code. If we middle-click, it sets the tile to an orange candy.
-		var overTileX = pixToTile(evt.stageX, tileWidth);
+		// Debug code. If we middle-click, it sets the tile to a special.
+		/*var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
 		gamefield[overTileX][overTileY].remove(true);
@@ -1250,7 +1274,7 @@ startNewGame = function() {
 				tile.bonuses=["hor"];
 				break;
 		}
-		gamefield[overTileX][overTileY] = tile;
+		gamefield[overTileX][overTileY] = tile;*/
 	};
 	
 	
