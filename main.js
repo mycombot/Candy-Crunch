@@ -61,6 +61,36 @@ startNewGame = function() {
 		};
 	
 	var getNewTile = function(){
+		var starburst = function(x,y) {
+			var starburst = new createjs.BitmapAnimation(
+				new createjs.SpriteSheet({
+					images: ["images/Burst_FX_EJS/Burst_FX.png"],
+					frames: [
+						[0,		0,		124,	135,	0,	61,	71],
+						[124,	0,		124,	135,	0,	61,	71],
+						[248,	0,		124,	135,	0,	61,	71],
+						[372,	0,		124,	135,	0,	61,	71],
+						[0,		135,	124,	135,	0,	61,	71],
+						[124,	135,	124,	135,	0,	61,	71],
+						[248,	135,	124,	135,	0,	61,	71],
+						[372,	135,	124,	135,	0,	61,	71],
+						[0,		270,	124,	135,	0,	61,	71],
+						[124,	270,	124,	135,	0,	61,	71],
+						[248,	270,	124,	135,	0,	61,	71],
+						[372,	270,	124,	135,	0,	61,	71]
+					]}));
+			starburst.x = x; starburst.y = y;
+			starburst.play();
+			effectContainer.addChild(starburst);
+			console.log(starburst);
+			starburst.onAnimationEnd = function() {
+				console.log('removed');
+				effectContainer.removeChild(starburst);
+			};
+			return starburst;
+		};
+
+		
 		return function getNewTileInternal (x,y, isBonus, type) { //x/y are in terms of tiles from the origin. type is the index of the bitmap. isBonus can be undefined or the type of bonus.
 			if(!_.contains([undefined, "hor", "ver", "point", "like"], isBonus) && undefined !== isBonus) { //_.contains doesn't work in ie8 with undefined.
 				console.warn("isBonus is '" + isBonus + "', shouldn't be.");
@@ -86,6 +116,7 @@ startNewGame = function() {
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
 				if(!quietly) {
 					if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
+					starburst(tileToReturn.x + tileWidth/2, tileToReturn.y + tileHeight / 2);
 					drawTileScore(Math.floor(40 * (matchesMadeThisMove/2+1)), tileToReturn.x+tileWidth/2, tileToReturn.y+tileHeight/2, 30, ["#F8DB63", "#CF8A09"]);
 				}
 				tileContainer.removeChild(tileToReturn);
