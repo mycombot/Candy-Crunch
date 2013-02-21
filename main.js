@@ -451,6 +451,11 @@ startNewGame = function() {
 					});
 				});
 			}
+			if(tile.index < 0 && typeof tile.matchedWithIndex === "undefined") {
+				var pretendMatchTile = tile.tileY+1 < yTiles ? gamefield[tile.tileX][tile.tileY+1] : gamefield[tile.tileX][tile.tileY-1];
+				tile.matchedWithIndex = pretendMatchTile.index;
+				affectedTiles = affectedTiles.concat(pairComboTilesToRemove(tile, pretendMatchTile));
+			}
 			return affectedTiles;
 		};
 		
@@ -1250,27 +1255,28 @@ startNewGame = function() {
 		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
+		var oldBonusIndex = gamefield[overTileX][overTileY].index;
 		gamefield[overTileX][overTileY].remove(true);
 		switch(oldBonus) {
 			case "hor":
-				var tile = getNewTile(overTileX, overTileY, "ver", 1);
+				var tile = getNewTile(overTileX, overTileY, "ver", oldBonusIndex);
 				tile.bonuses=["ver"];
 				break;
 			case "ver":
-				var tile = getNewTile(overTileX, overTileY, "point", 1);
+				var tile = getNewTile(overTileX, overTileY, "point", oldBonusIndex);
 				tile.bonuses=["point"];
 				break;
 			case "point":
-				var tile = getNewTile(overTileX, overTileY, "like", 1);
+				var tile = getNewTile(overTileX, overTileY, "like", oldBonusIndex);
 				tile.bonuses=["like"];
 				tile.index = -1;
 				break;
 			case "like":
-				var tile = getNewTile(overTileX, overTileY, "hor", 1);
-				tile.bonuses=["hor"];
+				var tile = getNewTile(overTileX, overTileY);
+				tile.bonuses=[];
 				break;
 			default:
-				var tile = getNewTile(overTileX, overTileY, "hor", 1);
+				var tile = getNewTile(overTileX, overTileY, "hor", oldBonusIndex);
 				tile.bonuses=["hor"];
 				break;
 		}
