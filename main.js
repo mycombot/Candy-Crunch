@@ -82,7 +82,7 @@ startNewGame = function() {
 			tileToReturn.isBonus = !!isBonus;
 			tileToReturn.bonuses = [];
 			
-			tileToReturn.remove = function(quietly) { //Note: Only call if you've actually added this tile to the stage. Set "quietly" to true if you're subbing out this tile for another one. If "quietly", score popup is suppressed and jelly isn't removed.
+			tileToReturn.remove = function(_, quietly) { //Note: Only call if you've actually added this tile to the stage. Set "quietly" to true if you're subbing out this tile for another one. If "quietly", score popup is suppressed and jelly isn't removed.
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
 				if(!quietly) {
 					if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
@@ -1247,7 +1247,7 @@ startNewGame = function() {
 		}
 		
 		// Debug code. If we middle-click, it sets the tile to a special.
-		/*var overTileX = pixToTile(evt.stageX, tileWidth);
+		var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
 		gamefield[overTileX][overTileY].remove(true);
@@ -1274,7 +1274,7 @@ startNewGame = function() {
 				tile.bonuses=["hor"];
 				break;
 		}
-		gamefield[overTileX][overTileY] = tile;*/
+		gamefield[overTileX][overTileY] = tile;
 	};
 	
 	
