@@ -116,10 +116,13 @@ startNewGame = function() {
 				gamefield[tileToReturn.tileX][tileToReturn.tileY] = null;
 				if(!quietly) {
 					if(jelly && jellyfield[tileToReturn.tileX][tileToReturn.tileY]) jellyfield[tileToReturn.tileX][tileToReturn.tileY].remove();
-					starburst(tileToReturn.x + tileWidth/2, tileToReturn.y + tileHeight / 2);
 					drawTileScore(Math.floor(40 * (matchesMadeThisMove/2+1)), tileToReturn.x+tileWidth/2, tileToReturn.y+tileHeight/2, 30, ["#F8DB63", "#CF8A09"]);
 				}
 				tileContainer.removeChild(tileToReturn);
+			};
+			
+			tileToReturn.burst = function() {
+				starburst(tileToReturn.x + tileWidth/2, tileToReturn.y + tileHeight / 2);
 			};
 			
 			if(type!==undefined || linesInDir(tileToReturn, 'h').length < 2 && linesInDir(tileToReturn, 'v').length < 2) {
@@ -563,6 +566,7 @@ startNewGame = function() {
 				return tile.bonuses.length;
 			});
 			
+			tilesToRemove.map(function(tile) {tile.burst();});
 			spawnBonusEffects(bonusesToApply, function() {
 				removeMatchingTilesAndAddBonuses(
 					tilesToRemove,
@@ -925,6 +929,8 @@ startNewGame = function() {
 		if(!!_.head(bonusTiles)) {
 			drawBigOverlay('Sugar Rush', Width/2, Height/2, 100, ["#F8DB63", "#CF8A09"]);
 			removeMatches(bonusTiles, true);
+		} else {
+			runGameOver();
 		}
 	};
 	
