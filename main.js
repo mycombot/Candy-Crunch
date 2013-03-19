@@ -632,11 +632,7 @@ startNewGame = function() {
 				.filter(function(tile) {
 					return Math.abs(tile.tileX - tileB.tileX) < 2 ||Math.abs(tile.tileY - tileB.tileY) < 2;
 				});
-		} else if(_.contains(tileA.bonuses, 'hor') && _.contains(tileB.bonuses, 'hor')) {
-			tileA.bonuses = [];
-			tileB.bonuses = ['ver', 'hor'];
-			tilesToRemove = [tileA, tileB];
-		} else if(_.contains(tileA.bonuses, 'ver') && _.contains(tileB.bonuses, 'ver')) {
+		} else if(_.contains(tileA.bonuses, 'hor') && _.contains(tileB.bonuses, 'hor') || _.contains(tileA.bonuses, 'ver') && _.contains(tileB.bonuses, 'ver')) {
 			tileA.bonuses = [];
 			tileB.bonuses = ['ver', 'hor'];
 			tilesToRemove = [tileA, tileB];
@@ -1297,7 +1293,7 @@ startNewGame = function() {
 		}
 		
 		// Debug code. If we middle-click, it sets the tile to a special.
-		var overTileX = pixToTile(evt.stageX, tileWidth);
+		/*var overTileX = pixToTile(evt.stageX, tileWidth);
 		var overTileY = pixToTile(evt.stageY, tileHeight);
 		var oldBonus = gamefield[overTileX][overTileY].bonuses[0];
 		var oldBonusIndex = gamefield[overTileX][overTileY].index;
@@ -1325,7 +1321,7 @@ startNewGame = function() {
 				tile.bonuses=["hor"];
 				break;
 		}
-		gamefield[overTileX][overTileY] = tile;
+		gamefield[overTileX][overTileY] = tile;*/
 	};
 	
 	

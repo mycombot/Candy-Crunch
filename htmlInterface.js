@@ -1,5 +1,5 @@
 var linkHTMLDisplay = function(){
-	"strict mode";
+	"use strict";
 	cashDisplay = $("#cash")[0];
 	scoreDisplay = $("#score")[0];
 	var writer = cashDisplay.textContent !== undefined ? "textContent" : "innerHTML";
